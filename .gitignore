@@ -112,4 +112,5 @@ run-local-*
 *.pid
 
 # Other files
+Mechanics/
 *.txt
