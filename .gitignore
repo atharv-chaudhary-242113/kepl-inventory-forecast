@@ -1,116 +1,202 @@
-# -----------------------------
+# ============================================
 # Python
-# -----------------------------
-__pycache__/
+# ============================================
+
+**pycache**/
 *.py[cod]
 *$py.class
 
-# Virtualenvs
-.env
-.venv
-env/
+# Virtual environments
+.venv/
 venv/
-ENV/
-env.bak/
-venv.bak/
+env/
 
-# Packaging
+# Python build artifacts
 build/
 dist/
 *.egg-info/
-.eggs/
-pip-wheel-metadata/
-.installed.cfg
+*.egg
 
-# Pytest / coverage
+# Test artifacts
 .pytest_cache/
 .coverage
-coverage.xml
 htmlcov/
-.cache/
 
-# Mypy / Ruff / lint
+# Type checking
 .mypy_cache/
+
+# Ruff
 .ruff_cache/
-dmypy.json
-.pytype/
+
+# Pyright
+.pyright/
 
 # Jupyter
 .ipynb_checkpoints/
 
-# Local config
-*.local.json
-*.local.yaml
-*.env
-.env.*
 
-# -----------------------------
-# Rust / Cargo
-# -----------------------------
+# ============================================
+# Rust
+# ============================================
+
 target/
-Cargo.lock
 
-# For workspace artifacts
-**/target/
+# Rust coverage / profiling
+*.profraw
+*.profdata
 
-# Rust tooling
-.rustup/
-.cargo/
 
-# -----------------------------
-# Node / Frontend (if any)
-# -----------------------------
-node_modules/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-pnpm-debug.log*
-.vscode-test/
+# ============================================
+# Cargo
+# ============================================
 
-# Build outputs
-*.log
+# Keep Cargo.lock committed for applications
+# !Cargo.lock
 
-# -----------------------------
-# OS / Editor junk
-# -----------------------------
-.DS_Store
-Thumbs.db
-ehthumbs.db
-Icon?
-Desktop.ini
 
-# IDE
-.idea/
-.vscode/
-*.iml
+# ============================================
+# uv
+# ============================================
 
-# -----------------------------
-# Project-specific
-# -----------------------------
-# Maturin / Python-Rust bridge
-*.so
+# Keep uv.lock committed
+# !uv.lock
+
+
+# ============================================
+# PyO3 / Native Extensions
+# ============================================
+
 *.pyd
+*.so
 *.dll
 *.dylib
-*.whl
 
-# Local data dumps / test files
-data/
-datasets/
+
+# ============================================
+# IDEs
+# ============================================
+
+.idea/
+.vscode/
+
+# JetBrains temporary files
+**/.idea/**/workspace.xml
+**/.idea/**/tasks.xml
+**/.idea/**/usage.statistics.xml
+
+
+# ============================================
+# Operating System
+# ============================================
+
+.DS_Store
+Thumbs.db
+desktop.ini
+
+
+# ============================================
+# Logs
+# ============================================
+
+*.log
+logs/
+
+
+# ============================================
+# Temporary Files
+# ============================================
+
+tmp/
+temp/
+.tmp/
+.cache/
+
+
+# ============================================
+# Runtime Data
+# ============================================
+
+exports/
+generated/
+artifacts/
+
+# Generated workbooks
 *.xlsx
-*.xls
-*.csv
-*.tmp
+*.xlsm
+
+# Except templates
+!templates/*.xlsx
+
+
+# ============================================
+# docs
+# ============================================
+
+# Keep architecture and engineering docs
+# committed to source control
+# Internal-only documentation
+docs/internal/
+
+# Generated documentation
+docs/generated/
+
+
+# ============================================
+# Security
+# ============================================
+
+.env
+.env.*
+!.env.example
+
+secrets/
+credentials/
+
+
+# ============================================
+# Benchmark Outputs
+# ============================================
+
+benchmark_results/
+profiling/
+
+
+# ============================================
+# Application State
+# ============================================
+
+local_settings.json
+user_settings.json
+recent_files.json
+
+
+# ============================================
+# Company Data
+# ============================================
+
+data/
+
+# Sample public datasets can be stored under:
+# data/sample/
+
+
+# ============================================
+# Packaging
+# ============================================
+
+release/
+installer/
+package/
+
+# PyInstaller
+*.spec
+
+
+# ============================================
+# Misc
+# ============================================
+
 *.bak
-
-# Generated figures from GUI
-figures/
-plots/
-
-# Local run scripts / outputs
-run-local-*
-*.pid
-
-# Other files
-Mechanics/
-*.txt
+*.swp
+*.swo
+*~
