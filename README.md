@@ -1,195 +1,524 @@
-# KEPL Inventory Forecaster
+# KEPL Inventory Forecast
 
-A native Rust + Python procurement analytics engine with a PySide6 desktop GUI.  
-It ingests ERP exports (POV, GRN, PV, Stock), runs inventory math and demand forecasting fully in Rust, and renders interactive analysis dashboards in Qt.
+Offline inventory forecasting and analytics workbench built with Rust, Python, PySide6, Plotly, Polars, DuckDB, PyArrow, and PyO3.
 
----
-
-## 1. Architecture
-
-The project is split into three main layers.
-
-- **Rust core (`coreengine`)**
-    - Ingestion of `.xlsx` / `.csv` into strongly typed `TransactionRow` structures using `calamine` and `csv`.
-    - Financial aggregation with strict `rust_decimal` fixed‑point math (no IEEE754 drift).
-    - SBC (Syntetos–Boylan) classification (`Smooth`, `Erratic`, `Intermittent`, `Lumpy`) using ADI and \(CV^2\).
-    - Forecasting engines:
-        - Random Forest for **Smooth** series via `smartcore`.
-        - GLM with IRLS for **Erratic** demand via `ndarray`.
-        - TSB for **Intermittent/Lumpy** demand.
-    - Inventory metrics: lead time, pending quantity, unordered quantity, trend factor derived from POV, GRN and stock snapshots.
-
-- **Rust → Python bindings (`keplcore`)**
-    - Exports a single FFI function `process_multiledger(pov_paths, grn_paths, stock_paths)` using `pyo3`.
-    - Parallel ingestion and analytics with `rayon` inside `py.allow_threads`, returning a packed Python dictionary:
-        - `abc_data`
-        - `historical_data`
-        - `supplier_data`
-        - placeholders: `lead_time_data`, `top10_trends`, `sbc_data`.
-
-- **Python GUI (`gui/`)**
-    - PySide6 application with:
-        - File selection and validation per dataset group (POV, GRN, PV, Stock) with per‑extension size caps.
-        - Results view with tabs:
-            - **Historical Data**
-            - **Data Analyzed**
-            - **Supplier Risk**
-    - Matplotlib‑based dashboard widgets:
-        - ABC Pareto chart (`ParetoChartWidget`).
-        - Treemap of ABC classes (`TreemapChartWidget`).
-        - Top‑10 SKU trends line chart (`Top10LineWidget`).
-        - Forecast comparison (Historical vs RF/GLM/TSB).
-        - Lead‑time box/whisker chart.
-        - SBC scatter matrix and supplier clusters.
-
-The GUI is launched via `gui.py` / `rungui.py` and imports the compiled `keplcore` extension.
+The platform ingests inventory and demand data, generates forecasts and analytical insights, exports a reusable Excel workbook, and provides interactive dashboards for business users. Forecasting and analytics are executed once per dataset and persisted for future reuse.
 
 ---
 
-## 2. Features
+# Objectives
 
-- **ERP‑friendly ingestion**
-    - Handles padding and messy headers by normalizing column names, then dynamically mapping indices.
-    - Supports `.xlsx`, `.xls`, `.csv` with configurable per‑file size limits.
-    - Vendor deduplication to enforce consistent supplier keys.
-
-- **Robust inventory analytics**
-    - FIFO mapping of GRNs to POVs to estimate lead time.
-    - Demand inferred from stock snapshots and GRNs across time.
-    - Computed metrics per SKU: total demand, lead time days, pending quantity, unordered quantity, trend factor.
-
-- **Forecasting**
-    - Routing of each SKU’s demand history to the correct engine based on SBC category.
-    - Random Forest, GLM‑IRLS and TSB engines, each returning forecast vectors plus error metrics.
-
-- **Visual dashboards**
-    - ABC Pareto bar + cumulative curve with configurable A/B/C thresholds.
-    - Treemap for ABC class distribution.
-    - Top‑10 SKU trend lines.
-    - Forecast comparison chart overlaying RF/GLM/TSB.
-    - Supplier risk clustering and SBC quadrant scatterplots.
+* Generate reliable inventory forecasts.
+* Calculate operational and financial metrics.
+* Classify inventory using ABC, XYZ, and risk models.
+* Export reusable analytical workbooks.
+* Load previously generated workbooks without recomputation.
+* Provide responsive dashboards for business users.
+* Operate fully offline.
+* Maintain strong engineering, testing, security, and reproducibility standards.
 
 ---
 
-## 3. Installation
+# Core Principles
 
-### 3.1 Prerequisites
-
-- Python 3.12 (to match `abi3-py312` build).
-- Rust toolchain (edition 2021) with Cargo.
-- `maturin` for building the Python extension:
-  ```bash
-  pip install maturin
-  ```
-- System packages for Qt and OpenGL (varies by OS).
-
-### 3.2 Clone and setup
-
-```bash
-git clone <your-repo-url>
-cd kepl-procurement-engine
-```
-
-Create and activate a virtualenv, then install Python dependencies:
-
-```bash
-python -m venv .venv
-source .venv/bin/activate  # or .venv\Scripts\activate on Windows
-
-pip install -e .[dev]
-```
-
-Build and install the Rust core as a Python extension:
-
-```bash
-cd bindings
-maturin develop --release
-cd ..
-```
-
-This produces and installs the `keplcore` extension that the GUI imports.
+* Keep the design simple.
+* Keep business logic isolated from presentation logic.
+* Keep file I/O isolated from business logic.
+* Treat all external inputs as untrusted.
+* Treat Excel as a persistence and interchange format.
+* Use cached datasets for dashboard operations.
+* Run forecasting exactly once per dataset.
+* Prefer explicit types over dynamic behavior.
+* Prefer composition over inheritance.
+* Measure before optimizing.
+* Optimize only validated bottlenecks.
 
 ---
 
-## 4. Running the GUI
+# Architecture Overview
 
-From the project root (with virtualenv active and extension built):
-
-```bash
-python gui.py
-# or
-python rungui.py
+```text
+Raw Input Data
+        │
+        ▼
+Validation Layer
+        │
+        ▼
+Rust Engine
+        │
+        ├── Ingestion
+        ├── Forecasting
+        ├── Analytics
+        ├── Financial Analysis
+        ├── Classification
+        └── Export Preparation
+        │
+        ▼
+Excel Workbook
+        │
+        ├── Metadata
+        ├── Forecasts
+        ├── Analytics
+        ├── Financials
+        ├── Classifications
+        └── Dashboard Cache
+        │
+        ▼
+Python Application
+        │
+        ├── PySide6
+        ├── Polars
+        ├── DuckDB
+        └── Plotly
+        │
+        ▼
+Interactive Dashboards
 ```
-
-The application boots as **“KEPL Procurement Engine”** and opens the main window maximized.
-
-**Workflow:**
-
-1. In the **File Selection** view, attach:
-    - Purchase Order Vouchers (POV)
-    - Goods Received Notes (GRN)
-    - Purchase Vouchers (PV)
-    - Closing Stock snapshots
-2. Click **Run Analysis**.
-3. The Rust engine ingests the datasets, computes metrics and forecasts, and returns the structured payload.
-4. The **Results Dashboard** updates with:
-    - Historical transactional data
-    - ABC / inventory analytics
-    - Supplier risk indicators and clusters
 
 ---
 
-## 5. Development
+# Technology Stack
 
-### 5.1 Rust core
+## Rust
 
-- Core crate: `coreengine/Cargo.toml`.
-- Bindings crate: `Chaudhary-procurement-engine.toml` / `keplcore`.
+Responsible for:
 
-Useful commands:
+* Data ingestion
+* Forecasting
+* Analytics
+* Financial calculations
+* Inventory classifications
+* Validation
+* Export preparation
 
-```bash
-# Run Rust tests
-cargo test
+### Key Libraries
 
-# Build core engine only
-cargo build --release -p coreengine
-```
-
-Key modules:
-
-- `ingest.rs` – Excel/CSV parsing and transaction row normalization.
-- `financials.rs` – Decimal aggregation and Pareto weights.
-- `classifier.rs` – SBC metrics (ADI, CV²) and categorization.
-- `forecaster/mod.rs` – routing + engines in `randomforest.rs`, `glm.rs`, `tsb.rs`.
-- `analytics.rs` – inventory math (lead time, demand, trend).
-
-### 5.2 Python GUI
-
-Run tests and lint:
-
-```bash
-pytest
-ruff check .
-mypy .
-```
-
-GUI modules (examples):
-
-- `selectionview.py` – file group widgets, file size limits per extension.
-- `views/resultsview.py` – top‑level results tab widget.
-- `charts/*.py` – specialized matplotlib widgets (Pareto, SBC matrix, supplier clusters, etc.).
+* PyO3
+* Polars
+* Chrono
+* RustDecimal
+* Serde
 
 ---
 
-## 6. Known limitations / current issues
+## Python
 
-- **Laggy GUI:**
-    - Matplotlib rendering blocks the main thread when large datasets and multiple charts are refreshed at once.
-    - State management is tightly coupled to view widgets, making incremental updates hard.
+Responsible for:
 
-- **Data placeholders:**
-    - Some dashboards currently rely on synthetic/random data where backend support is not yet wired (`top10_trends`, lead‑time categories, full SBC back‑prop to plots).
+* Application orchestration
+* State management
+* Workbook management
+* Dashboard management
 
-- **Adoption risk:**
-    - Heavy native stack (Rust + pyo3 + maturin + PySide6 + matplotlib) requires more build tooling than typical internal Python dashboards.
+### Key Libraries
+
+* PySide6
+* Plotly
+* Polars
+* DuckDB
+* OpenPyXL
+* Pydantic
+
+---
+
+# Forecasting
+
+Implement:
+
+* Random Forest Forecasting
+* General Linear Model Forecasting
+* Teunter-Syntetos-Babai Forecasting
+
+Support:
+
+* Configurable forecast horizons
+* Forecast confidence metrics
+* Model performance metrics
+* Historical comparisons
+
+---
+
+# Analytics
+
+Calculate:
+
+* Trend metrics
+* Seasonality metrics
+* Demand variability metrics
+* Inventory KPIs
+* Operational KPIs
+* Business KPIs
+
+---
+
+# Classification
+
+Generate:
+
+* ABC Classification
+* XYZ Classification
+* ABC-XYZ Classification
+* Risk Classification
+
+---
+
+# Financial Analysis
+
+Calculate:
+
+* Inventory value
+* Carrying cost
+* Inventory turnover
+* Stockout exposure
+* Excess inventory exposure
+* Forecast financial impact
+
+Financial values must use deterministic decimal arithmetic or fixed-point representations.
+
+---
+
+# Workbook Workflow
+
+## First Execution
+
+```text
+Raw Dataset
+    │
+    ▼
+Run Forecasting
+    │
+    ▼
+Generate Analytics
+    │
+    ▼
+Export Workbook
+    │
+    ▼
+Open Dashboard
+```
+
+---
+
+## Subsequent Executions
+
+```text
+Existing Workbook
+    │
+    ▼
+Validate Workbook
+    │
+    ▼
+Load Dashboard Cache
+    │
+    ▼
+Open Dashboard
+```
+
+No forecasting or analytics are executed during workbook reuse.
+
+---
+
+# Workbook Structure
+
+## Metadata
+
+Stores:
+
+* Application version
+* Workbook schema version
+* Generation timestamp
+* Runtime statistics
+* Source file metadata
+* Source file hash
+* Output hash
+
+---
+
+## Forecasts
+
+Stores:
+
+* Historical demand
+* Forecast values
+* Forecast metrics
+* Confidence information
+
+---
+
+## Analytics
+
+Stores:
+
+* Trend metrics
+* Seasonality metrics
+* Demand metrics
+* Operational metrics
+
+---
+
+## Financials
+
+Stores:
+
+* Inventory metrics
+* Financial metrics
+* Risk metrics
+
+---
+
+## Classifications
+
+Stores:
+
+* ABC classifications
+* XYZ classifications
+* Combined classifications
+
+---
+
+## Dashboard Cache
+
+Stores:
+
+* Precomputed aggregations
+* Dashboard summaries
+* Chart-ready datasets
+* Filter-ready datasets
+
+The dashboard cache serves as the primary dashboard data source.
+
+---
+
+# Dashboard Features
+
+Provide:
+
+* Executive Summary Dashboard
+* Forecast Dashboard
+* Financial Dashboard
+* Classification Dashboard
+* Operational Dashboard
+
+Support:
+
+* Interactive filtering
+* Interactive charts
+* Zooming
+* Panning
+* Tooltips
+* Exportable visualizations
+
+---
+
+# Data Management
+
+## Persistence
+
+Excel workbooks serve as the canonical persistence and interchange format.
+
+---
+
+## In-Memory Analytics
+
+Polars owns:
+
+* In-memory analytical datasets
+* Filtering operations
+* Aggregations
+
+---
+
+## Analytical Querying
+
+DuckDB owns:
+
+* Complex analytical queries
+* Large dataset operations
+
+---
+
+## Dashboard Operations
+
+Dashboard interactions operate exclusively on cached in-memory datasets.
+
+Dashboard interactions never:
+
+* Re-run forecasting
+* Re-run analytics
+* Re-read workbook files
+
+---
+
+# Performance Principles
+
+* Run forecasting once per dataset.
+* Load workbooks once per session.
+* Cache dashboard datasets in memory.
+* Minimize Rust-Python boundary crossings.
+* Minimize memory copies.
+* Avoid unnecessary dataframe reconstruction.
+* Avoid repeated Excel reads.
+* Profile before optimizing.
+
+---
+
+# Security Principles
+
+* Treat all external inputs as untrusted.
+* Validate all workbook schemas.
+* Validate all user inputs.
+* Reject unsupported workbook versions.
+* Restrict file operations to approved locations.
+* Prevent path traversal.
+* Prevent UNC path abuse.
+* Prevent workbook tampering.
+* Prevent formula injection.
+* Prevent query injection.
+* Prevent renderer resource exhaustion.
+* Audit Rust-Python boundaries.
+* Protect data integrity.
+
+Refer to `THREAT_MODEL.md` and `SECURITY_REQUIREMENTS.md` for full security controls.
+
+---
+
+# Environment Management
+
+The project standardizes on uv.
+
+Use uv for:
+
+* Virtual environments
+* Dependency management
+* Dependency locking
+* Tool execution
+
+All developers must use the committed `uv.lock` file.
+
+Install dependencies:
+
+```bash
+uv sync
+```
+
+Run development tooling:
+
+```bash
+uv run pytest
+uv run mypy .
+uv run ruff check .
+uv run ruff format .
+```
+
+---
+
+# Code Quality
+
+## Python
+
+Use:
+
+* Ruff
+* PyTest
+* MyPy
+* Pydantic
+
+---
+
+## Rust
+
+Use:
+
+* cargo fmt
+* Clippy
+* cargo test
+* cargo audit
+* cargo deny
+* Criterion
+
+---
+
+# Testing
+
+Test:
+
+* Forecasting
+* Analytics
+* Financial calculations
+* Classifications
+* Workbook generation
+* Workbook loading
+* Rust-Python integration
+* Dashboard workflows
+* Security controls
+* Performance constraints
+
+---
+
+# Reproducibility
+
+Python reproducibility:
+
+```text
+uv.lock
+```
+
+Rust reproducibility:
+
+```text
+cargo.lock
+```
+
+Environment recreation:
+
+```bash
+uv sync
+cargo build
+```
+
+All dependency changes must be committed through lockfile updates.
+
+---
+
+# Packaging
+
+Provide:
+
+* Offline desktop application
+* Windows deployment
+* One-click launch
+* Bundled dependencies
+
+Require:
+
+* No terminal usage
+* No internet connection
+
+---
+
+# Documentation
+
+The project documentation set consists of:
+
+```text
+README.md
+PROJECT_CONSTITUTION.md
+ARCHITECTURE.md
+THREAT_MODEL.md
+SECURITY_REQUIREMENTS.md
+ADR/
+WORKBOOK_SCHEMA.md
+API_CONTRACT.md
+DOMAIN_MODEL.md
+PERFORMANCE_BUDGET.md
+TEST_PLAN.md
+CODING_STANDARDS.md
+DEPENDENCY_POLICY.md
+ROADMAP.md
+```
+
+---
+
+# Status
+
+KEPL Inventory Forecast is designed as a reusable inventory forecasting and analytics platform that prioritizes correctness, maintainability, security, reproducibility, and operational efficiency.
