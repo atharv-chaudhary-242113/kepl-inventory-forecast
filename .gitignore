@@ -110,3 +110,6 @@ plots/
 # Local run scripts / outputs
 run-local-*
 *.pid
+
+# Other files
+*.txt
