@@ -1,0 +1,13 @@
+[package]
+name = "kepl-bindings"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+
+[lib]
+name = "kepl_bindings"
+crate-type = ["cdylib"]
+
+[dependencies]
+pyo3 = { version = "0.28.3", features = ["extension-module", "chrono", "anyhow", "pyo3-macros"] }
+kepl-core = { path = "../core" }
