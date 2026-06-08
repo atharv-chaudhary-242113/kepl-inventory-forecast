@@ -7,6 +7,7 @@ the datatype and if it does not match the schema then it will not proceed furthe
 
 from typing import Literal
 
+import pydantic
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
@@ -17,6 +18,7 @@ class PipelineSettings(BaseModel):
     # extra="forbid": an unknown/typoed config key is rejected loudly, not silently
     #                   dropped. (Constituion Rule 7, fail-closed on bad input).
     model_config = ConfigDict(frozen=True, extra="forbid")
+    pydantic.StringConstraints(to_lower=True)
 
     forecast_horizon: int = Field(
         default=12, description="Number of future periods to forecast.", ge=1
@@ -57,8 +59,6 @@ class PipelineSettings(BaseModel):
         Returns:
             str: Valid Granularity.
         """
-        if not isinstance(v, str):
-            return v
         accepted_granularity = ["monthly", "quarterly"]
         v = v.lower().strip()
         if v not in accepted_granularity:
