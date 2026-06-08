@@ -18,11 +18,11 @@ amended first — in its own commit, with justification.
 ### Rule 1 — One language owns the work
 The engine is pure Python. Ingestion, demand reconstruction, forecasting,
 analytics, classification, financial calculation, and validation live in
-`src/kepl/ingestion` and `src/kepl/engine`. There is no second language and no FFI
+`src/opstools/inventory_forecast/ingestion` and `src/opstools/inventory_forecast/engine`. There is no second language and no FFI
 boundary to defend. Business logic must never live in the UI layer.
 
 ### Rule 2 — The UI owns presentation only
-`src/kepl/ui` owns application lifecycle, user interaction, and rendering. It calls
+`src/opstools/inventory_forecast/ui` owns application lifecycle, user interaction, and rendering. It calls
 services; it never computes a forecast, a risk score, or a financial figure. If a
 UI handler is doing arithmetic on domain data, that arithmetic belongs in
 `engine`.

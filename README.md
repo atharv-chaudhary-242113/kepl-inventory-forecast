@@ -272,7 +272,7 @@ dashboards have no code path that can trigger recomputation.
 
 ## 10. Configuration
 
-Runtime parameters are typed Pydantic settings (`src/kepl/config/settings.py`),
+Runtime parameters are typed Pydantic settings (`src/opstools/inventory_forecast/config/settings.py`),
 overridable per run from the Configuration view. The business-tunable values:
 
 | Setting                  | Meaning                                                   | Default        |
@@ -296,7 +296,7 @@ unvalidated assumption.
 ## 11. Project Structure
 
 ```text
-src/kepl/
+src/opstools/inventory_forecast/
 ├── config/        # Pydantic settings
 ├── domain/        # pure types: enums, models, error hierarchy (no I/O)
 ├── ingestion/     # read → header-detect → forward-fill → normalize → validate
