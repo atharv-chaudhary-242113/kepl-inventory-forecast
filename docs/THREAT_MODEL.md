@@ -1,5 +1,17 @@
 # Threat Model
 
+## Purpose and Scope
+
+This document identifies the assets KEPL Inventory Forecast must protect, the
+boundaries data crosses, the threats against each, and the controls that mitigate
+them. It is scoped to the pure-Python desktop build: a single-process, offline
+application with no server, no network dependency, and no foreign-function
+interface. The absence of an FFI is itself a security property — it removes an
+entire class of boundary, panic-propagation, and memory-safety threats that a
+mixed-language build must defend.
+
+---
+
 ## Security Objectives
 
 Protect:
@@ -9,7 +21,7 @@ Protect:
 * Inventory analytics
 * Workbook integrity
 * Application availability
-* Local file system
+* The local file system
 * User workstations
 * Internal business data
 
@@ -24,7 +36,7 @@ Assume:
 
 ---
 
-# Trust Boundaries
+## Trust Boundaries
 
 ```text
 External Files
@@ -40,21 +52,16 @@ Dashboard Layer
 Export Layer
 ```
 
-```text
-Python
-    ↕
-PyO3 Boundary
-    ↕
-Rust Engine
-```
-
-Validate all data crossing every boundary.
+Validate all data crossing every boundary. There is no language boundary in this
+build; all layers run in one Python process, so the only trust boundaries are the
+ones above — where untrusted bytes (files, workbook contents, user input) enter
+trusted application state.
 
 ---
 
-# Critical Assets
+## Critical Assets
 
-## Business Assets
+### Business Assets
 
 * Forecast outputs
 * Financial metrics
@@ -62,7 +69,7 @@ Validate all data crossing every boundary.
 * Classifications
 * Executive summaries
 
-## Technical Assets
+### Technical Assets
 
 * Workbook exports
 * Dashboard cache
@@ -70,7 +77,7 @@ Validate all data crossing every boundary.
 * Logs
 * Application state
 
-## System Assets
+### System Assets
 
 * Local file system
 * User credentials
@@ -78,8 +85,6 @@ Validate all data crossing every boundary.
 * Workstation resources
 
 ---
-
-# Threat Categories
 
 ## Data Integrity Threats
 
@@ -158,20 +163,20 @@ Risk:
 Controls:
 
 * Escape dangerous cell values
-* Prefix values beginning with:
+* Prefix any value beginning with one of these characters with a single quote:
 
-  * =
-  * *
-  * *
-  * @
+  * `=`
+  * `+`
+  * `-`
+  * `@`
 
 Priority: High
 
 ---
 
-# File System Threats
+## File System Threats
 
-## UNC Path Injection
+### UNC Path Injection
 
 Examples:
 
@@ -194,7 +199,7 @@ Priority: High
 
 ---
 
-## Path Traversal
+### Path Traversal
 
 Examples:
 
@@ -217,24 +222,24 @@ Priority: High
 
 ---
 
-## Arbitrary File Access Through Metadata
+### Arbitrary File Access Through Metadata
 
 Risk:
 
-* Workbook controls file operations
+* Workbook content controls file operations
 
 Controls:
 
 * Ignore workbook-supplied paths
-* Use application-controlled directories
+* Use application-controlled directories only
 
 Priority: High
 
 ---
 
-# Workbook Threats
+## Workbook Threats
 
-## ZIP Bombs
+### ZIP Bombs
 
 Risk:
 
@@ -252,7 +257,7 @@ Priority: High
 
 ---
 
-## XML External Entity Attacks
+### XML External Entity Attacks
 
 Risk:
 
@@ -269,7 +274,7 @@ Priority: Medium
 
 ---
 
-## Oversized Workbooks
+### Oversized Workbooks
 
 Risk:
 
@@ -287,9 +292,9 @@ Priority: High
 
 ---
 
-# Dashboard Threats
+## Dashboard Threats
 
-## Plotly XSS
+### Plotly XSS
 
 Risk:
 
@@ -306,7 +311,7 @@ Priority: Medium
 
 ---
 
-## QWebEngine Abuse
+### QWebEngine Abuse
 
 Risk:
 
@@ -323,11 +328,11 @@ Priority: Medium
 
 ---
 
-## QWebChannel Abuse
+### QWebChannel Abuse
 
 Risk:
 
-* Direct access to Python objects
+* Direct access to Python objects from the renderer
 
 Controls:
 
@@ -339,7 +344,7 @@ Priority: Medium
 
 ---
 
-## Renderer Process Exhaustion
+### Renderer Process Exhaustion
 
 Risk:
 
@@ -358,11 +363,11 @@ Priority: Medium
 
 ---
 
-## Dashboard Recreation Abuse
+### Dashboard Recreation Abuse
 
 Risk:
 
-* Resource exhaustion
+* Resource exhaustion from rapid re-rendering
 
 Controls:
 
@@ -374,95 +379,31 @@ Priority: Medium
 
 ---
 
-# Query Threats
+## Query Threats
 
-## DuckDB Injection
-
-Risk:
-
-* Arbitrary query execution
-* File access abuse
-
-Controls:
-
-* Use parameterized queries
-* Validate identifiers
-* Disable unnecessary extensions
-
-Priority: High
-
----
-
-## Polars Expression Injection
+### Polars Expression Injection
 
 Risk:
 
-* Unexpected query behavior
+* Unexpected query behavior from dynamically built expressions
 
 Controls:
 
-* Avoid dynamic expression construction
-* Validate identifiers
+* Avoid dynamic expression construction from user input
+* Validate identifiers (column/sheet names) against an allowlist
 
 Priority: Medium
 
----
-
-# Rust-Python Boundary Threats
-
-## Invalid Data Structures
-
-Risk:
-
-* Crashes
-* Panics
-* Undefined behavior
-
-Controls:
-
-* Validate lengths
-* Validate dimensions
-* Validate ranges
-* Validate enum values
-
-Priority: High
+> Note: DuckDB is not a runtime dependency in this build (it is a documented
+> performance escalation only). If DuckDB is later adopted, reintroduce a
+> "DuckDB Injection" threat (parameterized queries, validated identifiers,
+> disabled extensions) at High priority.
 
 ---
 
-## Panic Propagation
+## Resource Exhaustion Threats
 
-Risk:
-
-* Python process termination
-
-Controls:
-
-* Catch Rust panics
-* Convert panics to Python exceptions
-
-Priority: High
-
----
-
-## Unsafe Rust Abuse
-
-Risk:
-
-* Memory corruption
-
-Controls:
-
-* Minimize unsafe code
-* Audit unsafe blocks
-* Test unsafe code
-
-Priority: High
-
----
-
-# Resource Exhaustion Threats
-
-## Memory Exhaustion
+### Memory Exhaustion
 
 Risk:
 
@@ -478,7 +419,7 @@ Priority: High
 
 ---
 
-## CPU Exhaustion
+### CPU Exhaustion
 
 Risk:
 
@@ -486,14 +427,15 @@ Risk:
 
 Controls:
 
-* Benchmark algorithms
+* Benchmark algorithms against the performance budget
 * Reject pathological workloads
+* Run long computations on a background worker, never the UI thread
 
 Priority: Medium
 
 ---
 
-## Chart Rendering Exhaustion
+### Chart Rendering Exhaustion
 
 Risk:
 
@@ -501,32 +443,17 @@ Risk:
 
 Controls:
 
-* Aggregate large datasets
-* Limit categories
+* Aggregate large datasets before rendering
+* Limit categories per chart
 * Paginate large tables
 
 Priority: Medium
 
 ---
 
-## Serialization Bombs
+## State Management Threats
 
-Risk:
-
-* Massive Rust-Python transfers
-
-Controls:
-
-* Chunk large transfers
-* Limit payload sizes
-
-Priority: Medium
-
----
-
-# State Management Threats
-
-## State Desynchronization
+### State Desynchronization
 
 Risk:
 
@@ -536,12 +463,13 @@ Controls:
 
 * Maintain a single source of truth
 * Centralize state management
+* Pass immutable frames from worker to UI
 
 Priority: High
 
 ---
 
-## Concurrent File Access
+### Concurrent File Access
 
 Risk:
 
@@ -558,9 +486,9 @@ Priority: Medium
 
 ---
 
-# Financial Integrity Threats
+## Financial Integrity Threats
 
-## Floating Point Errors
+### Floating-Point Errors
 
 Risk:
 
@@ -568,35 +496,37 @@ Risk:
 
 Controls:
 
-* Use Decimal
+* Use Decimal (Polars `Decimal` / Python `Decimal`)
 * Use integer cents where appropriate
+* Never accumulate currency in floating point
 
 Priority: High
 
 ---
 
-## Date Parsing Errors
+### Date Parsing Errors
 
 Risk:
 
-* Invalid forecasts
+* Invalid lead times and forecasts
 
 Controls:
 
-* Normalize dates
+* Normalize dates at the ingestion boundary
 * Store ISO-8601 values internally
+* Parse to an explicit Date dtype rather than relying on inference
 
 Priority: High
 
 ---
 
-# Logging Threats
+## Logging Threats
 
-## Sensitive Data Exposure
+### Sensitive Data Exposure
 
 Risk:
 
-* Confidential data leakage
+* Confidential business data leakage through logs
 
 Controls:
 
@@ -607,7 +537,7 @@ Priority: Medium
 
 ---
 
-## Log Forgery
+### Log Forgery
 
 Risk:
 
@@ -622,35 +552,27 @@ Priority: Medium
 
 ---
 
-# Dependency Threats
+## Dependency Threats
 
-## Python Supply Chain
+### Python Supply Chain
+
+Risk:
+
+* Compromised or vulnerable third-party packages
 
 Controls:
 
-* Pin dependency versions
-* Run pip-audit
-* Review upgrades
+* Pin all dependency versions in `uv.lock`
+* Run `pip-audit` (or equivalent) on the locked set
+* Review upgrades before committing a lockfile change
 
 Priority: Medium
 
 ---
 
-## Rust Supply Chain
+## Windows Desktop Threats
 
-Controls:
-
-* Run cargo audit
-* Run cargo deny
-* Review dependency changes
-
-Priority: Medium
-
----
-
-# Windows Desktop Threats
-
-## DLL Search Order Hijacking
+### DLL Search Order Hijacking
 
 Risk:
 
@@ -666,7 +588,7 @@ Priority: Medium
 
 ---
 
-## Network Share Execution
+### Network Share Execution
 
 Risk:
 
@@ -682,23 +604,23 @@ Priority: Medium
 
 ---
 
-## PyInstaller Runtime Extraction Abuse
+### PyInstaller Runtime Extraction Abuse
 
 Risk:
 
-* Runtime asset tampering
+* Runtime asset tampering during extraction
 
 Controls:
 
 * Validate extraction directory permissions
 * Verify ownership
-* Consider one-folder deployment
+* Prefer one-folder deployment
 
 Priority: Low
 
 ---
 
-## Windows File Locking Conflicts
+### Windows File-Locking Conflicts
 
 Risk:
 
@@ -708,34 +630,34 @@ Risk:
 Controls:
 
 * Detect sharing violations
-* Handle PermissionError gracefully
+* Handle `PermissionError` gracefully
 * Notify users
 
 Priority: High
 
 ---
 
-## Incomplete Exports
+### Incomplete Exports
 
 Risk:
 
-* Corrupted workbooks
+* Corrupted workbooks from interrupted writes
 
 Controls:
 
-* Write to temporary files
-* Validate outputs
+* Write to a temporary file
+* Validate the output
 * Perform atomic replacement
 
 Priority: High
 
 ---
 
-## Temporary File Leakage
+### Temporary File Leakage
 
 Risk:
 
-* Data exposure
+* Data exposure through leftover temporary files
 
 Controls:
 
@@ -747,15 +669,13 @@ Priority: Medium
 
 ---
 
-# Workbook Authenticity
+## Workbook Authenticity
 
 Risk:
 
 * Forged workbooks presented as system-generated
 
-Controls:
-
-Store:
+Controls — store in the Metadata sheet:
 
 * Application version
 * Workbook schema version
@@ -771,7 +691,7 @@ Priority: Medium
 
 ---
 
-# Security Testing Requirements
+## Security Testing Requirements
 
 Test:
 
@@ -783,41 +703,38 @@ Test:
 * Path traversal
 * Workbook tampering
 * Schema downgrade attacks
-* Query injection
+* Polars expression injection
 * Plotly XSS
-* Rust boundary failures
 * Large datasets
 * Resource exhaustion
 * State desynchronization
 * Concurrent access
 * DLL hijacking scenarios
-* File locking scenarios
+* File-locking scenarios
 
 Block releases on critical failures.
 
 ---
 
-# Highest Priority Risks
+## Highest-Priority Risks
 
 1. Silent data corruption
 2. Workbook tampering
 3. Formula injection
 4. UNC path injection
 5. Path traversal
-6. Rust-Python boundary failures
-7. DuckDB query injection
-8. ZIP bomb attacks
-9. Floating-point financial errors
-10. Date parsing errors
-11. State desynchronization
-12. Windows file-locking failures
-13. Renderer process exhaustion
-14. Plotly/QWebEngine abuse
-15. Dependency supply-chain compromise
+6. ZIP bomb attacks
+7. Floating-point financial errors
+8. Date parsing errors
+9. State desynchronization
+10. Windows file-locking failures
+11. Renderer process exhaustion
+12. Plotly / QWebEngine abuse
+13. Dependency supply-chain compromise
 
 ---
 
-# Security Principles
+## Security Principles
 
 * Validate all inputs.
 * Trust no workbook content.
@@ -830,6 +747,6 @@ Block releases on critical failures.
 * Treat data integrity as equal to cybersecurity.
 * Isolate business logic from UI logic.
 * Isolate file I/O from business logic.
-* Keep Rust-Python contracts explicit.
+* Run long computations off the UI thread.
 * Measure security continuously.
 * Block releases on critical security failures.

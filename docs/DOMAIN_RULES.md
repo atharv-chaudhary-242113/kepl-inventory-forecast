@@ -430,19 +430,16 @@ The exact reconstruction methodology may evolve independently of the forecasting
 
 ## Primary Forecasting Method
 
-Use:
-
-```text
-Holt-Winters Exponential Smoothing
-```
-
-as the primary demand forecasting method.
+There is no single primary method. Forecasting is routed by Syntetos–Boylan class,
+and the per-class winner is selected by backtested accuracy (MASE/RMSSE) against
+naive baselines. Exponential smoothing (ETS) is the baseline for the continuous
+(smooth/erratic) classes; the intermittent classes use Croston-family methods.
 
 ---
 
 ## Forecast Components
 
-Holt-Winters models demand through:
+Exponential smoothing (ETS) models continuous demand through:
 
 ```text
 Level
@@ -507,31 +504,32 @@ Demand classification determines supplementary forecasting behavior.
 
 ## Smooth
 
-Use:
-
-```text
-Random Forest
-```
+Use ETS (or Theta). Random Forest is not used: tree models cannot extrapolate a
+trend (predictions are bounded by training values) and overfit the short per-item
+series we have.
 
 ---
 
 ## Erratic
 
-Use:
-
-```text
-General Linear Model
-```
+Use ETS (damped or multiplicative-error). A Tweedie GLM may be trialled as an
+optional count-aware challenger; a plain Gaussian GLM is not used, because the
+problem here is quantity variance, not the mean trajectory a GLM models.
 
 ---
 
 ## Intermittent
 
-Use:
+Use Teunter–Syntetos–Babai (TSB), benchmarked against Croston-SBA. TSB updates the
+demand probability every period, making it robust to items that go obsolete.
 
-```text
-Teunter–Syntetos–Babai
-```
+---
+
+## Lumpy
+
+Use TSB or Croston-SBA. For this class the forecast output is the lead-time demand
+distribution feeding the reorder point, not a point-forecast curve — a point
+forecast on lumpy demand is close to meaningless.
 
 ---
 
@@ -552,9 +550,9 @@ Demand Reconstruction
         ↓
 SBC Classification
         ↓
-Holt-Winters Baseline
+Baselines (Naive / SeasonalNaive / SES) + Class-Routed Candidates
         ↓
-Model-Specific Refinement
+Backtested Selection (rolling-origin CV, MASE / RMSSE)
         ↓
 Final Forecast
 ```

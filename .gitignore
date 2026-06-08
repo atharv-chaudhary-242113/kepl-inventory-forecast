@@ -202,5 +202,6 @@ package/
 *.swo
 *~
 
-# =========== TEMP =============
-python/
+
+# =========== PRIVATE =============
+private/
