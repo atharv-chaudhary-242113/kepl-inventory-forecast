@@ -1,85 +1,53 @@
-"""Pipeline Schema with Pydantic.
+"""Runtime configuration for a single pipeline run.
 
-All business variables are typed into a pydantic schema to make the pipeline smoother.
-Instead of working with a wrong configuration or dtype, the pipeline will first check
-the datatype and if it does not match the schema then it will not proceed further.
+A frozen Pydantic model holding the business-tunable parameters from README
+§10. Frozen for reproducibility (Constitution Rule 9): a run's settings cannot
+mutate mid-pipeline. Several defaults (freight_rate, ABC thresholds) encode
+assumptions still *pending business validation* (DOMAIN_RULES.md) — they are
+configurable precisely so no unvalidated value is hard-coded into the engine.
 """
 
-from typing import Literal
+from decimal import Decimal
+from typing import Self
 
-import pydantic
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, model_validator
+
+from opstools.inventory_forecast.domain.enums import ForecastGranularity
 
 
-class PipelineSettings(BaseModel):
-    """Create schema for each business variable."""
+class Settings(BaseModel):
+    """Typed, validated, immutable settings for one run."""
 
-    # frozen=True: settings can't mutate mid-run -> reproducibility.
-    # extra="forbid": an unknown/typoed config key is rejected loudly, not silently
-    #                   dropped. (Constituion Rule 7, fail-closed on bad input).
-    model_config = ConfigDict(frozen=True, extra="forbid")
-    pydantic.StringConstraints(to_lower=True)
+    # frozen=True => instances are immutable and hashable. Mutating settings
+    # mid-run would break reproducibility, so we forbid it at the type level.
+    model_config = ConfigDict(frozen=True)
 
-    forecast_horizon: int = Field(
-        default=12, description="Number of future periods to forecast.", ge=1
-    )
-    forecast_granularity: Literal["monthly", "quarterly"] = Field(
-        default="monthly", description="Monthly or Quarterly forecast"
-    )
-    service_z: float = Field(
-        default=1.65,
-        description="Service-level z-score in the reorder-point formula.",
-        gt=0,
-    )
-    default_lead_time_days: int = Field(
-        default=30, gt=1, description="Fallback lead time when history is insufficient."
-    )
-    freight_rate: float = Field(
-        default=0.18, description="Freight treated as a separate cost component."
-    )
-    abc_thresholds: dict[str, float] = Field(
-        default_factory=lambda: {"a": 0.80, "b": 0.95},
-        description="Cumulative-value cut points for A/B/C.",
-    )
-    enable_supplier_risk: bool = Field(
-        default=True, description="Toggle supplier-risk analytics."
-    )
-    enable_partnerships: bool = Field(
-        default=True, description="Toggle suspected-partnership detection."
-    )
+    forecast_horizon: int = Field(default=12, gt=0)
+    forecast_granularity: ForecastGranularity = ForecastGranularity.MONTHLY
+    service_z: float = Field(default=1.65, gt=0.0)
+    default_lead_time_days: int = Field(default=30, gt=0)
+    # Money is Decimal end to end; floating-point currency accumulation is
+    # prohibited (DOMAIN_RULES.md "Currency Precision"; THREAT_MODEL.md
+    # "Floating-Point Errors"). The freight *rate* lives here as Decimal so the
+    # multiplication downstream stays in Decimal space.
+    freight_rate: Decimal = Field(default=Decimal("0.18"), ge=Decimal("0"))
+    abc_a_threshold: float = Field(default=0.80, gt=0.0, lt=1.0)
+    abc_b_threshold: float = Field(default=0.95, gt=0.0, lt=1.0)
+    enable_supplier_risk: bool = True
+    enable_partnerships: bool = True
 
-    @field_validator("forecast_granularity", mode="before")
-    @classmethod
-    def check_granularity(cls, v: str) -> str:
-        """Validate Granularity is one of: 'monthly' or 'quarterly'.
+    @model_validator(mode="after")
+    def _check_threshold_order(self) -> Self:
+        """A-band cutoff must sit below the B-band cutoff (DOMAIN_RULES.md ABC).
 
-        Args:
-            v (str): Granularity to validate.
-
-        Returns:
-            str: Valid Granularity.
+        Field-level `gt/lt` can only bound each threshold to (0, 1); the
+        *relationship* between them needs a model-level check, which runs after
+        both fields are populated.
         """
-        accepted_granularity = ["monthly", "quarterly"]
-        v = v.lower().strip()
-        if v not in accepted_granularity:
-            raise ValueError("forecast_granularity must be 'monthly' or 'quarterly'")
-        return v
-
-    @field_validator("abc_thresholds", mode="before")
-    @classmethod
-    def check_abc_thresholds(cls, v: dict[str, float]) -> dict[str, float]:
-        """Validate ABC cut-points are present, ordered, and within (0, 1).
-
-        Args:
-            v (dict[str, float]): Cut-points to validate.
-
-        Returns:
-            dict[str, float]: Valid ABC cut-points.
-        """
-        # Keys must exist before we can compare them.
-        if "a" not in v or "b" not in v:
-            raise ValueError("abc_thresholds must have keys 'a' and 'b'.")
-        a, b = v["a"], v["b"]
-        if not (0 < a < b < 1):
-            raise ValueError("abc_thresholds must satisfy (0 < a < b < 1).")
-        return v
+        if self.abc_a_threshold >= self.abc_b_threshold:
+            msg = (
+                "abc_a_threshold must be < abc_b_threshold "
+                f"(got {self.abc_a_threshold} and {self.abc_b_threshold})"
+            )
+            raise ValueError(msg)
+        return self

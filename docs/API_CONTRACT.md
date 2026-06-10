@@ -13,7 +13,7 @@ the same commit and, if it changes output, bumping the workbook schema version.
 - Data crossing a layer boundary is a Pydantic model or a Polars frame whose schema
   (column names + dtypes) is documented in this file or `WORKBOOK_SCHEMA.md`.
 - Functions in `engine` and `viz` are pure: same input → same output, no I/O.
-- Errors raised across a boundary are subclasses of `kepl.domain.errors.KeplError`.
+- Errors raised across a boundary are subclasses of `opstools.inventory_forecast.domain.errors.InventoryForecastError`.
 - Inputs are validated at the ingestion boundary; engine functions assume clean
   frames and state that assumption in their docstrings.
 
@@ -32,13 +32,13 @@ class SbcClass(StrEnum):
     SMOOTH = "smooth"; ERRATIC = "erratic"
     INTERMITTENT = "intermittent"; LUMPY = "lumpy"
 
-class KeplError(Exception):
+class InventoryForecastError(Exception):
     """Base for all domain errors."""
 
-class SchemaError(KeplError):          # missing/unrecognized columns, no header found
-class ValidationError(KeplError):      # bad values: negative qty/price/amount, empty supplier
-class WorkbookVersionError(KeplError): # workbook schema version unsupported
-class ForecastError(KeplError):        # forecasting failed for a series
+class SchemaError(InventoryForecastError):          # missing/unrecognized columns, no header found
+class ValidationError(InventoryForecastError):      # bad values: negative qty/price/amount, empty supplier
+class WorkbookVersionError(InventoryForecastError): # workbook schema version unsupported
+class ForecastError(InventoryForecastError):        # forecasting failed for a series
 ```
 
 Canonical ingested-frame schema (the contract every `read_source` output meets):
