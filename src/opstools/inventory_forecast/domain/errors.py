@@ -24,6 +24,16 @@ class ValidationError(InventoryForecastError):
     """A value violates a domain constraint (negative qty/price/amount, etc.)."""
 
 
+class SecurityError(InventoryForecastError):
+    """An untrusted path or file violates a THREAT_MODEL.md control.
+
+    Raised by the ``security`` layer for UNC/SMB paths, traversal sequences,
+    ambiguous drive-relative paths, disallowed extensions, and oversized files.
+    Distinct from ValidationError so callers can treat a *security* rejection
+    (a possible attack) differently from a merely malformed *value*.
+    """
+
+
 class WorkbookVersionError(InventoryForecastError):
     """A workbook's schema version is unsupported by this application version."""
 

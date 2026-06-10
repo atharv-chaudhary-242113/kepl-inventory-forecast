@@ -16,6 +16,7 @@ from opstools.inventory_forecast.domain.errors import (
     ForecastError,
     InventoryForecastError,
     SchemaError,
+    SecurityError,
     ValidationError,
     WorkbookVersionError,
 )
@@ -28,6 +29,7 @@ __all__ = [
     "InventoryForecastError",
     "SbcClass",
     "SchemaError",
+    "SecurityError",
     "SourceKind",
     "SourceSet",
     "ValidationError",

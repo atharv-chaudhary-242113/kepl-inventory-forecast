@@ -38,20 +38,22 @@ class InventoryForecastError(Exception):
 class SchemaError(InventoryForecastError):          # missing/unrecognized columns, no header found
 class ValidationError(InventoryForecastError):      # bad values: negative qty/price/amount, empty supplier
 class WorkbookVersionError(InventoryForecastError): # workbook schema version unsupported
+class SecurityError(InventoryForecastError):        # untrusted path/file violates THREAT_MODEL.md control
 class ForecastError(InventoryForecastError):        # forecasting failed for a series
 ```
 
 Canonical ingested-frame schema (the contract every `read_source` output meets):
 
-| Column     | Dtype       | Notes                                   |
-| ---------- | ----------- | --------------------------------------- |
-| `date`     | `Date`      | parsed; null only where source allows   |
-| `supplier` | `Utf8`      | forward-filled, parenthetical-normalized|
-| `item`     | `Utf8`      | non-empty                               |
-| `qty`      | `Float64`   | ≥ 0                                     |
-| `unit`     | `Utf8`      | may be empty for Closing Stock          |
-| `price`    | `Decimal`   | ≥ 0                                     |
-| `amount`   | `Decimal`   | ≥ 0                                     |
+| Column     | Dtype     | Notes                                   |
+| ---------- |-----------| --------------------------------------- |
+| `date`     | `Date`    | parsed; null only where source allows   |
+| `voucher`  | `Utf8`    | Voucher / bill number (`Vch/Bill No`); carried for Pending_Deliveries linkage and lead-time pairing. |
+| `item`     | `Utf8`    | non-empty                               |
+| `supplier` | `Utf8`    | forward-filled, parenthetical-normalized|
+| `qty`      | `Float64` | ≥ 0                                     |
+| `unit`     | `Utf8`    | may be empty for Closing Stock          |
+| `price`    | `Decimal` | ≥ 0                                     |
+| `amount`   | `Decimal` | ≥ 0                                     |
 
 ---
 
@@ -66,11 +68,19 @@ def read_source(path: Path, kind: SourceKind) -> pl.LazyFrame:
     Date; qty/price/amount non-negative.
 
     Raises:
-        SchemaError: header row not found, or a required column is missing.
-        ValidationError: a value violates a domain constraint.
+        - SchemaError: header row not found, or a required column is missing.
+        - ValidationError: a value violates a domain constraint.
+        - SecurityError: an untrusted path or file violates a THREAT_MODEL.md control 
+                        (UNC/SMB path, traversal sequence, ambiguous drive-relative path, 
+                        disallowed extension, oversize file). Distinct from `ValidationError` 
+                        so a security rejection (possible attack) is messaged differently 
+                        from a malformed value.
     """
 ```
-
+On any record-level constraint breach (empty item/supplier, negative or unparseable qty/price/amount, 
+unparseable non-blank date), `read_source` raises `ValidationError` naming the file, column, 
+and offending value — it never silently drops the offending row. Blank numerics and blank ledger 
+dates are permitted and surface as null.
 ---
 
 ## `engine` — representative signatures
