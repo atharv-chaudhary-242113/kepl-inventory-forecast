@@ -10,7 +10,7 @@ named, scoped increments, each with its own test verification.
 ## Phase 0 — Scaffolding
 - **Build:** `pyproject.toml`, `uv.lock`, ruff/mypy/pytest configuration,
 `config/settings.py`, `domain/{enums,models,errors}.py`.
-- **Gate:** `mypy --strict` clean; empty/placeholder test suite green; `uv run python -m kepl` starts and exits cleanly.
+- **Gate:** `mypy --strict` clean; empty/placeholder test suite green; `uv run python -m opstools/inventory_forecast` starts and exits cleanly.
 
 ## Phase 1 — Ingestion
 **Build:** `ingestion/{reader,header_detection,normalize,schema}.py`.
