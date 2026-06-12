@@ -106,8 +106,8 @@ class SecurityError(InventoryForecastError):
 
     Raised by the ``security`` layer for UNC/SMB paths, traversal sequences,
     ambiguous drive-relative paths, disallowed extensions, and oversized files.
-    Distinct from ValidationError so callers can treat a *security* rejection
-    (a possible attack) differently from a merely malformed *value*.
+    Distinct from DataValidationError so callers can treat a *security*
+    rejection (a possible attack) differently from a merely malformed *value*.
     """
 
 

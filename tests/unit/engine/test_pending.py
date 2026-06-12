@@ -100,3 +100,22 @@ def test_pending_output_column_order_matches_contract(ledger) -> None:
         "order_date",
         "age_days",
     ]
+
+
+def test_pending_rows_are_sorted_by_contract_keys(ledger) -> None:
+    """Pending output is deterministic across supplier, item, date, voucher."""
+    pov = ledger(
+        [
+            (date(2025, 1, 2), "O2", "Beta", "Nut", 1.0, 10.0),
+            (date(2025, 1, 1), "O1", "Acme", "Wire", 1.0, 10.0),
+            (date(2025, 1, 1), "O3", "Acme", "Bolt", 1.0, 10.0),
+        ]
+    )
+
+    out = build_pending_deliveries(compute_lead_time(pov, ledger([]))).collect()
+
+    assert out.select(["supplier", "item", "voucher_number"]).rows() == [
+        ("Acme", "Bolt", "O3"),
+        ("Acme", "Wire", "O1"),
+        ("Beta", "Nut", "O2"),
+    ]

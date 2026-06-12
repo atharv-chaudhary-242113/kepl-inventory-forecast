@@ -121,3 +121,39 @@ def test_null_dated_order_excluded_from_matching(ledger) -> None:
 
     assert out.height == 1
     assert out.row(0, named=True)["voucher_number"] == "O2"
+
+
+def test_null_dated_receipt_excluded_from_matching(ledger) -> None:
+    """A receipt with no date cannot fulfill an order on the FIFO axis."""
+    pov = ledger([(date(2025, 1, 1), "O1", "Acme", "Wire", 5.0, 50.0)])
+    grn = ledger(
+        [
+            (None, "G1", "Acme", "Wire", 5.0, 50.0),
+            (date(2025, 1, 9), "G2", "Acme", "Wire", 5.0, 50.0),
+        ]
+    )
+
+    out = compute_lead_time(pov, grn).collect()
+
+    assert out.height == 1
+    assert out.row(0, named=True)["grn_date"] == date(2025, 1, 9)
+
+
+def test_lead_time_output_column_order_matches_contract(ledger) -> None:
+    """The FIFO allocation frame keeps its documented column order."""
+    pov = ledger([(date(2025, 1, 1), "O1", "Acme", "Wire", 5.0, 50.0)])
+    grn = ledger([])
+
+    out = compute_lead_time(pov, grn).collect()
+
+    assert out.columns == [
+        "order_id",
+        "supplier",
+        "item",
+        "voucher_number",
+        "pov_date",
+        "grn_date",
+        "ordered_qty",
+        "delivered_qty",
+        "lead_time_days",
+    ]

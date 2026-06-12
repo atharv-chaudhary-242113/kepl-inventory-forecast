@@ -9,7 +9,7 @@ an allowlist over a blocklist.
 
 from pathlib import Path
 
-from opstools.inventory_forecast.domain.errors import SecurityError, ValidationError
+from opstools.inventory_forecast.domain.errors import DataValidationError, SecurityError
 
 # 50 MB ceiling on any single source file. A workbook far larger than a real ERP
 # export is the cheapest signal of a ZIP/decompression bomb or a memory-exhaustion
@@ -74,20 +74,20 @@ def enforce_file_size_limits(path: Path) -> None:
     """Confirm the file exists and is within ``MAX_FILE_SIZE_BYTES``.
 
     Raises:
-        ValidationError: the path does not point at an existing regular file.
+        DataValidationError: the path does not point at an existing regular file.
         SecurityError: the file exceeds the maximum permitted size.
     """
     try:
         size = path.stat().st_size
     except OSError as exc:
         # Missing/unreadable file is bad *input*, not an attack, so it is a
-        # ValidationError; we surface the OS reason for an actionable message.
+        # DataValidationError; we surface the OS reason for an actionable message.
         msg = f"Source file is not readable: {path} ({exc.strerror or exc})"
-        raise ValidationError(msg) from exc
+        raise DataValidationError(msg) from exc
 
     if not path.is_file():
         msg = f"Source path is not a regular file: {path}"
-        raise ValidationError(msg)
+        raise DataValidationError(msg)
 
     if size > MAX_FILE_SIZE_BYTES:
         msg = (

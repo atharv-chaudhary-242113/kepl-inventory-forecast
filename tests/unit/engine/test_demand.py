@@ -162,3 +162,18 @@ def test_output_column_order_matches_contract(ledger) -> None:
         "demand_quantity",
         "demand_value",
     ]
+
+
+def test_empty_pov_returns_empty_contract_frame(ledger) -> None:
+    """No POV rows yields the Demand_History contract with zero rows."""
+    out = reconstruct_demand(ledger([])).collect()
+
+    assert out.height == 0
+    assert out.columns == [
+        "period",
+        "supplier",
+        "item",
+        "demand_quantity",
+        "demand_value",
+    ]
+    assert out.schema["demand_value"] == pl.Decimal(precision=38, scale=4)

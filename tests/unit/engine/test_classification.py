@@ -99,6 +99,20 @@ def test_abc_respects_configured_thresholds(ledger) -> None:
     assert by_item["Low"] == AbcClass.C.value
 
 
+def test_abc_empty_input_returns_contract_columns(ledger) -> None:
+    """No PV rows yields an empty ABC frame with the sheet contract."""
+    out = build_abc_classification(ledger([]), Settings()).collect()
+
+    assert out.height == 0
+    assert out.columns == [
+        "supplier",
+        "item",
+        "annual_value",
+        "cumulative_percentage",
+        "abc_class",
+    ]
+
+
 # --- SBC ------------------------------------------------------------------
 
 
@@ -170,3 +184,17 @@ def test_sbc_single_observation_has_zero_cv2() -> None:
     out = classify_sbc(_demand(rows)).collect().row(0, named=True)
 
     assert out["cv_squared"] == 0.0
+
+
+def test_sbc_groups_by_supplier_and_item() -> None:
+    """The same item under two suppliers is classified independently."""
+    rows = [
+        ("Acme", "Wire", date(2025, 1, 1), 10.0),
+        ("Acme", "Wire", date(2025, 2, 1), 10.0),
+        ("Globex", "Wire", date(2025, 1, 1), 2.0),
+        ("Globex", "Wire", date(2025, 5, 1), 80.0),
+    ]
+    out = classify_sbc(_demand(rows)).collect()
+
+    assert set(out["supplier"].to_list()) == {"Acme", "Globex"}
+    assert out.height == 2

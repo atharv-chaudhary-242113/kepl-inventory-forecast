@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from opstools.inventory_forecast.domain.errors import SecurityError, ValidationError
+from opstools.inventory_forecast.domain.errors import DataValidationError, SecurityError
 from opstools.inventory_forecast.security import paths
 
 
@@ -12,6 +12,10 @@ from opstools.inventory_forecast.security import paths
 def test_allowlisted_extensions_accepted(ext):
     # A plain local relative path with an allowed extension must pass.
     paths.validate_local_path(Path(f"export{ext}"))
+
+
+def test_allowlisted_extension_matching_is_case_insensitive():
+    paths.validate_local_path(Path("REPORT.XLSX"))
 
 
 def test_unc_forward_slash_rejected():
@@ -29,6 +33,10 @@ def test_unc_backslash_rejected():
 def test_path_traversal_rejected():
     with pytest.raises(SecurityError):
         paths.validate_local_path(Path("../secret/report.xlsx"))
+
+
+def test_dotdot_inside_filename_is_not_path_traversal():
+    paths.validate_local_path(Path("..report.xlsx"))
 
 
 def test_drive_relative_path_rejected():
@@ -63,6 +71,11 @@ def test_size_limit_rejects_oversized_file(tmp_path, monkeypatch):
         paths.enforce_file_size_limits(target)
 
 
-def test_size_limit_missing_file_is_validation_error(tmp_path):
-    with pytest.raises(ValidationError):
+def test_size_limit_missing_file_is_data_validation_error(tmp_path):
+    with pytest.raises(DataValidationError):
         paths.enforce_file_size_limits(tmp_path / "nope.csv")
+
+
+def test_size_limit_directory_is_data_validation_error(tmp_path):
+    with pytest.raises(DataValidationError):
+        paths.enforce_file_size_limits(tmp_path)

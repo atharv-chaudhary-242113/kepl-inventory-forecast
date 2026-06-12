@@ -91,3 +91,20 @@ def test_financial_output_column_order_matches_contract(ledger) -> None:
         "total_cost",
         "total_spend",
     ]
+
+
+def test_empty_pv_returns_empty_financial_contract(ledger) -> None:
+    """No PV rows yields the Financial_Summary contract with zero rows."""
+    out = build_financial_summary(ledger([]), Settings()).collect()
+
+    assert out.height == 0
+    assert out.columns == [
+        "supplier",
+        "item",
+        "quantity",
+        "unit_cost",
+        "freight_cost",
+        "total_cost",
+        "total_spend",
+    ]
+    assert out.schema["total_spend"] == pl.Decimal(precision=38, scale=4)

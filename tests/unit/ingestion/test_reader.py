@@ -8,9 +8,10 @@ import pytest
 
 from opstools.inventory_forecast.domain.enums import SourceKind
 from opstools.inventory_forecast.domain.errors import (
-    SchemaError,
+    DataValidationError,
+    InvalidSchemaError,
+    MissingColumnError,
     SecurityError,
-    ValidationError,
 )
 from opstools.inventory_forecast.ingestion import read_source
 
@@ -108,6 +109,20 @@ def test_reads_ledger_csv_with_metadata_rows(make_csv):
     assert df["date"][0] == date(2025, 2, 10)
 
 
+def test_reads_ragged_csv_metadata_rows(make_csv):
+    path = make_csv(
+        "ragged.csv",
+        "KEPL Pvt Ltd\n"
+        "Generated,For,Testing\n"
+        "Date,Vch/Bill No,Particulars,Item Details,Qty.,Unit,Price,Amount\n"
+        "2025-02-10,V1,ABC,Wire,5,Nos,10,50\n",
+    )
+    df = read_source(path, SourceKind.POV).collect()
+
+    assert df.height == 1
+    assert df["voucher"].to_list() == ["V1"]
+
+
 def test_determinism_same_input_same_output(make_csv):
     text = (
         "Date,Vch/Bill No,Particulars,Item Details,Qty.,Unit,Price,Amount\n"
@@ -130,15 +145,21 @@ def test_bad_extension_is_security_error(tmp_path):
         read_source(target, SourceKind.POV)
 
 
-def test_missing_required_column_is_schema_error(make_csv):
+def test_missing_required_column_is_missing_column_error(make_csv):
     path = make_csv("bad.csv", "Date,Particulars,Item Details\n2025-01-01,ABC,Wire\n")
-    with pytest.raises(SchemaError):
+    with pytest.raises(MissingColumnError):
         read_source(path, SourceKind.PV).collect()
 
 
-def test_no_header_is_schema_error(make_csv):
+def test_no_header_is_invalid_schema_error(make_csv):
     path = make_csv("nohdr.csv", "foo,bar\n1,2\n")
-    with pytest.raises(SchemaError):
+    with pytest.raises(InvalidSchemaError):
+        read_source(path, SourceKind.POV).collect()
+
+
+def test_empty_csv_is_invalid_schema_error(make_csv):
+    path = make_csv("empty.csv", "\n\n")
+    with pytest.raises(InvalidSchemaError):
         read_source(path, SourceKind.POV).collect()
 
 
@@ -148,10 +169,10 @@ def test_negative_value_is_validation_error(make_csv):
         "Date,Vch/Bill No,Particulars,Item Details,Qty.,Unit,Price,Amount\n"
         "2025-01-01,V1,ABC,Wire,-5,Nos,10,50\n",
     )
-    with pytest.raises(ValidationError):
+    with pytest.raises(DataValidationError):
         read_source(path, SourceKind.POV).collect()
 
 
-def test_missing_file_is_validation_error(tmp_path):
-    with pytest.raises(ValidationError):
+def test_missing_file_is_data_validation_error(tmp_path):
+    with pytest.raises(DataValidationError):
         read_source(tmp_path / "ghost.csv", SourceKind.POV)

@@ -36,6 +36,15 @@ def test_no_matching_header_returns_none():
     assert detect_header_row(grid, _EXPECTED) is None
 
 
+def test_empty_scan_returns_none():
+    assert detect_header_row([], _EXPECTED) is None
+
+
+def test_empty_expected_columns_returns_none():
+    grid = [["Date", "Particulars", "Item Details", "Qty."]]
+    assert detect_header_row(grid, []) is None
+
+
 def test_detection_is_case_and_space_insensitive():
     grid = [[" DATE ", "particulars", "ITEM DETAILS", "qty."]]
     assert detect_header_row(grid, _EXPECTED) == 0

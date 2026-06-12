@@ -22,12 +22,24 @@ def test_forward_fill_inherits_previous_supplier():
     assert out == ["ABC", "ABC", "ABC", "XYZ", "XYZ"]
 
 
+def test_forward_fill_accepts_custom_column_name():
+    df = pl.DataFrame({"vendor": ["ABC", None, "XYZ"]})
+    out = df.with_columns(forward_fill_supplier_expr("vendor"))["vendor"].to_list()
+    assert out == ["ABC", "ABC", "XYZ"]
+
+
 def test_normalize_supplier_strips_branch_suffix():
     df = pl.DataFrame(
         {"supplier": ["ABC Electricals (Noida)", "ABC Electricals (Delhi)", "XYZ"]}
     )
     out = df.with_columns(normalize_supplier_expr())["supplier"].to_list()
     assert out == ["ABC Electricals", "ABC Electricals", "XYZ"]
+
+
+def test_normalize_supplier_accepts_custom_column_name():
+    df = pl.DataFrame({"vendor": [" ABC (Noida) ", "XYZ"]})
+    out = df.with_columns(normalize_supplier_expr("vendor"))["vendor"].to_list()
+    assert out == ["ABC", "XYZ"]
 
 
 def test_normalize_supplier_collapses_branches_to_one_identity():

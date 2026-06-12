@@ -4,7 +4,10 @@ import polars as pl
 import pytest
 
 from opstools.inventory_forecast.domain.enums import SourceKind
-from opstools.inventory_forecast.domain.errors import SchemaError, ValidationError
+from opstools.inventory_forecast.domain.errors import (
+    DataValidationError,
+    MissingColumnError,
+)
 from opstools.inventory_forecast.ingestion import schema
 
 
@@ -25,6 +28,12 @@ def test_ledger_kinds_are_ledgers(kind):
 
 def test_closing_stock_is_reduced_schema():
     assert not schema.is_ledger(SourceKind.CLOSING_STOCK)
+    assert schema.required_erp_columns(SourceKind.CLOSING_STOCK) == [
+        "Item Details",
+        "Qty.",
+        "Price",
+        "Amount",
+    ]
     assert schema.canonical_columns(SourceKind.CLOSING_STOCK) == [
         "item",
         "qty",
@@ -51,9 +60,24 @@ def test_map_to_canonical_is_fuzzy_and_drops_extras():
     assert out.columns == schema.canonical_columns(SourceKind.POV)
 
 
-def test_map_to_canonical_missing_column_raises_schema_error():
+def test_map_to_canonical_closing_stock_uses_reduced_mapping():
+    table = pl.DataFrame(
+        {
+            "Item Details": ["Wire"],
+            "Qty.": ["1"],
+            "Price": ["2"],
+            "Amount": ["2"],
+            "Particulars": ["ignored"],
+        }
+    )
+    out = schema.map_to_canonical(table, SourceKind.CLOSING_STOCK, "stock.csv")
+
+    assert out.columns == ["item", "qty", "price", "amount"]
+
+
+def test_map_to_canonical_missing_column_raises_missing_column_error():
     table = pl.DataFrame({"Date": ["2025-01-01"], "Particulars": ["ABC"]})
-    with pytest.raises(SchemaError):
+    with pytest.raises(MissingColumnError):
         schema.map_to_canonical(table, SourceKind.PV, "pv.csv")
 
 
@@ -119,7 +143,7 @@ def test_finalize_rejects_negative_quantity():
             "amount": ["1"],
         }
     )
-    with pytest.raises(ValidationError):
+    with pytest.raises(DataValidationError):
         schema.finalize_records(df, SourceKind.POV, "pov.xlsx")
 
 
@@ -136,7 +160,7 @@ def test_finalize_rejects_unparseable_amount():
             "amount": ["not-a-number"],
         }
     )
-    with pytest.raises(ValidationError):
+    with pytest.raises(DataValidationError):
         schema.finalize_records(df, SourceKind.POV, "pov.xlsx")
 
 
@@ -153,8 +177,26 @@ def test_finalize_rejects_unparseable_date():
             "amount": ["1"],
         }
     )
-    with pytest.raises(ValidationError):
+    with pytest.raises(DataValidationError):
         schema.finalize_records(df, SourceKind.GRN, "grn.csv")
+
+
+def test_finalize_accepts_common_indian_date_format():
+    df = _ledger_frame(
+        {
+            "date": ["05/01/2025"],
+            "voucher": ["PO1"],
+            "supplier": ["ABC"],
+            "item": ["Wire"],
+            "qty": ["1"],
+            "unit": ["Nos"],
+            "price": ["1"],
+            "amount": ["1"],
+        }
+    )
+    out = schema.finalize_records(df, SourceKind.GRN, "grn.csv")
+
+    assert out["date"].dt.strftime("%Y-%m-%d").to_list() == ["2025-01-05"]
 
 
 def test_finalize_rejects_supplier_before_first_header():
@@ -171,7 +213,7 @@ def test_finalize_rejects_supplier_before_first_header():
             "amount": ["1"],
         }
     )
-    with pytest.raises(ValidationError):
+    with pytest.raises(DataValidationError):
         schema.finalize_records(df, SourceKind.POV, "pov.xlsx")
 
 
@@ -194,3 +236,24 @@ def test_finalize_closing_stock_reduced_schema():
     assert out.columns == ["item", "qty", "price", "amount"]
     assert out.schema["amount"] == pl.Decimal(scale=schema.MONEY_SCALE)
     assert out["amount"].sum() == 35  # Decimal accumulation, not float
+
+
+def test_finalize_closing_stock_drops_empty_item_separator_rows():
+    df = pl.DataFrame(
+        {
+            "item": ["Wire", None],
+            "qty": ["10", None],
+            "price": ["2", None],
+            "amount": ["20", None],
+        },
+        schema={
+            "item": pl.String,
+            "qty": pl.String,
+            "price": pl.String,
+            "amount": pl.String,
+        },
+    )
+    out = schema.finalize_records(df, SourceKind.CLOSING_STOCK, "stock.csv")
+
+    assert out.height == 1
+    assert out["item"].to_list() == ["Wire"]

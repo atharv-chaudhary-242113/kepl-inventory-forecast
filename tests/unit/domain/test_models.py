@@ -12,8 +12,15 @@ from opstools.inventory_forecast.domain.models import SourceSet, WorkbookMeta
 
 def test_enum_string_values():
     assert SourceKind.POV == "pov"
+    assert SourceKind.GRN == "grn"
+    assert SourceKind.PV == "pv"
     assert SourceKind.CLOSING_STOCK == "closing_stock"
     assert AbcClass.A == "A"
+    assert AbcClass.B == "B"
+    assert AbcClass.C == "C"
+    assert SbcClass.SMOOTH == "smooth"
+    assert SbcClass.ERRATIC == "erratic"
+    assert SbcClass.INTERMITTENT == "intermittent"
     assert SbcClass.LUMPY == "lumpy"
 
 
@@ -38,6 +45,13 @@ def test_source_set_is_frozen():
     sources = SourceSet()
     with pytest.raises(ValidationError):
         sources.pov = (Path("x.xlsx"),)  # frozen model => assignment rejected
+
+
+def test_empty_source_set_yields_no_paths():
+    sources = SourceSet()
+
+    assert list(sources.iter_with_kind()) == []
+    assert sources.all_paths == ()
 
 
 def test_workbook_meta_holds_documented_fields():
@@ -67,6 +81,22 @@ def test_workbook_meta_rejects_nonpositive_horizon():
             output_hash="def",
             forecast_horizon=0,
             total_suppliers=3,
+            total_items=42,
+            total_records=1000,
+            processing_time_seconds=4.2,
+        )
+
+
+def test_workbook_meta_rejects_negative_counts():
+    with pytest.raises(ValidationError):
+        WorkbookMeta(
+            schema_version="1.0.0",
+            application_version="0.1.0",
+            generated_at=datetime(2026, 1, 1),
+            source_hash="abc",
+            output_hash="def",
+            forecast_horizon=12,
+            total_suppliers=-1,
             total_items=42,
             total_records=1000,
             processing_time_seconds=4.2,

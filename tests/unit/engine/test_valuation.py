@@ -85,3 +85,13 @@ def test_valuation_output_column_order_matches_contract(ledger, closing) -> None
         "inventory_value",
         "snapshot_date",
     ]
+
+
+def test_valuation_rows_are_sorted_by_item(ledger, closing) -> None:
+    """The valuation frame is deterministic by item name."""
+    stock = closing([("Wire", 1.0, 1.0), ("Bolt", 1.0, 1.0)])
+    pv = ledger([])
+
+    out = build_inventory_valuation(stock, pv, _SNAP).collect()
+
+    assert out["item"].to_list() == ["Bolt", "Wire"]

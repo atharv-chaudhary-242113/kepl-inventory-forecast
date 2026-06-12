@@ -4,9 +4,11 @@ This module turns a header-aligned, all-string table into the canonical,
 typed, validated frame promised by API_CONTRACT.md. It owns three jobs:
 
 * the ERP-name -> canonical-name mapping per source kind,
-* fuzzy column resolution that raises `SchemaError` on a missing required column,
-* casting + record validation that raises `ValidationError` (naming the file,
-  column, and offending value) on any value that breaks a domain constraint.
+* fuzzy column resolution that raises `MissingColumnError` on a missing required
+  column,
+* casting + record validation that raises `DataValidationError` (naming the
+  file, column, and offending value) on any value that breaks a domain
+  constraint.
 
 Validation here *raises* rather than silently dropping rows: bad input must fail
 loudly with an actionable error, never silently with a wrong number
@@ -18,7 +20,10 @@ from collections.abc import Mapping
 import polars as pl
 
 from opstools.inventory_forecast.domain.enums import SourceKind
-from opstools.inventory_forecast.domain.errors import SchemaError, ValidationError
+from opstools.inventory_forecast.domain.errors import (
+    DataValidationError,
+    MissingColumnError,
+)
 from opstools.inventory_forecast.ingestion.header_detection import normalize_token
 from opstools.inventory_forecast.ingestion.normalize import (
     blank_to_null_expr,
@@ -101,7 +106,7 @@ def map_to_canonical(
     Matching"); extra/unused columns are tolerated and dropped.
 
     Raises:
-        SchemaError: a required column could not be located in `table`.
+        MissingColumnError: a required column could not be located in `table`.
     """
     # Map each *present* column by its normalized form so we can find "qty." for
     # an expected "Qty." regardless of case/spacing.
@@ -118,7 +123,7 @@ def map_to_canonical(
 
     if missing:
         msg = f"{source_label}: missing required column(s): {', '.join(missing)}"
-        raise SchemaError(msg)
+        raise MissingColumnError(msg)
 
     return table.rename(rename).select(canonical_columns(kind))
 
@@ -164,7 +169,7 @@ def finalize_records(
         closing stock: [item(Utf8), qty(Float64), price(Decimal), amount(Decimal)]
 
     Raises:
-        ValidationError: an empty item/supplier, an unparseable or negative
+        DataValidationError: an empty item/supplier, an unparseable or negative
             numeric, or an unparseable (non-blank) date.
     """
     ledger = is_ledger(kind)
@@ -223,11 +228,11 @@ def finalize_records(
 
 
 def _validate(df: pl.DataFrame, ledger: bool, source_label: str) -> None:
-    """Raise ValidationError on the first record-level constraint breach."""
+    """Raise DataValidationError on the first record-level constraint breach."""
     # Empty item — never valid (INPUT_SCHEMA.md "Validation Rules").
     if df.filter(pl.col("item").is_null()).height > 0:
         msg = f"{source_label}: found a record with an empty 'Item Details'"
-        raise ValidationError(msg)
+        raise DataValidationError(msg)
 
     # Empty supplier after forward-fill — means rows preceded any supplier header.
     if ledger and df.filter(pl.col("supplier").is_null()).height > 0:
@@ -235,7 +240,7 @@ def _validate(df: pl.DataFrame, ledger: bool, source_label: str) -> None:
             f"{source_label}: found a record with no supplier; the first data "
             "rows appear before any 'Particulars' value to inherit"
         )
-        raise ValidationError(msg)
+        raise DataValidationError(msg)
 
     # Numeric columns: unparseable (non-blank but cast to null), then negative.
     for canonical_name, typed_name in (
@@ -255,7 +260,7 @@ def _validate(df: pl.DataFrame, ledger: bool, source_label: str) -> None:
                 f"{source_label}: non-numeric value '{example}' "
                 f"in column '{canonical_name}'"
             )
-            raise ValidationError(msg)
+            raise DataValidationError(msg)
 
         negative = pl.col(typed_name) < 0
         if df.filter(negative).height > 0:
@@ -264,7 +269,7 @@ def _validate(df: pl.DataFrame, ledger: bool, source_label: str) -> None:
                 f"{source_label}: negative value '{example}' "
                 f"in column '{canonical_name}'"
             )
-            raise ValidationError(msg)
+            raise DataValidationError(msg)
 
     # Dates (ledgers): a non-blank value that matched no known format is invalid.
     # A genuinely blank date is left null (the canonical schema allows it).
@@ -273,4 +278,4 @@ def _validate(df: pl.DataFrame, ledger: bool, source_label: str) -> None:
         if df.filter(bad_date).height > 0:
             example = _first_offending(df, bad_date, "date")
             msg = f"{source_label}: unparseable date '{example}' in column 'Date'"
-            raise ValidationError(msg)
+            raise DataValidationError(msg)

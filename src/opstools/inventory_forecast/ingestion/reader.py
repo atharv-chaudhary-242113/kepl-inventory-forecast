@@ -18,7 +18,7 @@ from pathlib import Path
 import polars as pl
 
 from opstools.inventory_forecast.domain.enums import SourceKind
-from opstools.inventory_forecast.domain.errors import SchemaError
+from opstools.inventory_forecast.domain.errors import InvalidSchemaError
 from opstools.inventory_forecast.ingestion.header_detection import (
     SCAN_LIMIT,
     detect_header_row,
@@ -49,8 +49,9 @@ def read_source(path: Path, kind: SourceKind) -> pl.LazyFrame:
 
     Raises:
         SecurityError: the path or file fails a THREAT_MODEL.md path/size guard.
-        SchemaError: no header row was found, or a required column is missing.
-        ValidationError: a value violates a domain constraint.
+        InvalidSchemaError: no header row was found.
+        MissingColumnError: a required column is missing.
+        DataValidationError: a value violates a domain constraint.
     """
     # Trust boundary: validate the untrusted path and bound its size before we
     # ever open it (THREAT_MODEL.md path-traversal/UNC/ZIP-bomb controls).
@@ -69,7 +70,7 @@ def read_source(path: Path, kind: SourceKind) -> pl.LazyFrame:
     header_index = detect_header_row(scan_rows, expected)
     if header_index is None:
         msg = f"{label}: could not locate a header row matching {expected}"
-        raise SchemaError(msg)
+        raise InvalidSchemaError(msg)
 
     table = _extract_table(grid, header_index)
     canonical = map_to_canonical(table, kind, label)
@@ -130,7 +131,8 @@ def _read_csv_grid(path: Path) -> pl.DataFrame:
     width = max((len(row) for row in rows), default=0)
     if width == 0:
         # An empty file has no header; surface it the same way a headerless sheet
-        # would, via the caller's SchemaError path, by returning an empty frame.
+        # would, via the caller's InvalidSchemaError path, by returning an empty
+        # frame.
         return pl.DataFrame()
 
     padded = [row + [""] * (width - len(row)) for row in rows]
