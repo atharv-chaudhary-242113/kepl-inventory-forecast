@@ -8,7 +8,7 @@ many receipts, one receipt covering many orders).
 A naive equi-join cannot express FIFO — it produces a Cartesian product that
 inflates every downstream metric. Instead, we match on *cumulative quantity
 intervals*: lay each item's orders end-to-end on a unit axis ``[A_{i-1}, A_i)``
-and its receipts on the same axis ``[B_{j-1}, B_j)``; the k-th ordered unit is
+and its receipts on the same axis ``[B_{j-1}, B_j]``; the k-th ordered unit is
 fulfilled by the k-th received unit, so order i and receipt j are matched on the
 *overlap* of their intervals, and the overlap length is the allocated quantity.
 This is a fully vectorized Polars formulation of FIFO (PERFORMANCE_BUDGET.md sec 4

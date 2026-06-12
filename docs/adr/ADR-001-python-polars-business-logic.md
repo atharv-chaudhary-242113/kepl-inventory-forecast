@@ -14,7 +14,7 @@ performance and type safety. Two facts reframe that choice on this branch:
    the dominant numeric work is already native whether we call it from Rust or
    Python.
 2. The data volumes are modest. The pipeline is overwhelmingly vectorizable
-   tabular work, not tight scalar loops where a hand-written systems language
+   tabular work, not tight scalar loops where a handwritten systems language
    pulls decisively ahead.
 
 ## Decision

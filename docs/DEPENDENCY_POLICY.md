@@ -41,7 +41,7 @@
 
 ## Adding a Dependency
 1. State the concern it covers and why no existing dependency can.
-2. Check license compatibility and maintenance health.
+2. Check licence compatibility and maintenance health.
 3. `uv add <pkg>`; commit the updated `uv.lock`.
 4. Note the addition and its justification in the commit message.
 

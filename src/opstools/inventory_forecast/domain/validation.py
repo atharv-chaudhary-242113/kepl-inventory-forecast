@@ -107,7 +107,7 @@ def _missing_columns(
     available = set(frame.collect_schema().names())
 
     return [
-        (f"{dataset_name}: missing required column '{column}'.")
+        f"{dataset_name}: missing required column '{column}'."
         for column in required_columns
         if column not in available
     ]

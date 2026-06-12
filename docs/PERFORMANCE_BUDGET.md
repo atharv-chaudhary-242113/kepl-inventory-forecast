@@ -14,7 +14,7 @@ and Rust builds are measured against. A build that misses a target is not done.
 
 ### 1. Filter response (< 200 ms) — tightest budget
 Filtering runs on pre-aggregated Polars frames in memory and is fast. The risk is
-*rendering*: a full Plotly redraw inside QWebEngineView can exceed 200 ms.
+*rendering*: a full Plotly redraw inside QWebEngineView can exceed 200ms.
 Mitigations, applied in order and only when a profiled chart misses budget:
 1. `Plotly.react` to diff the figure instead of redrawing it.
 2. Pre-aggregate further in the Dashboard_Cache so figures receive small frames.

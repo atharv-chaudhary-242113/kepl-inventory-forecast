@@ -36,7 +36,7 @@
 18. [Security](#18-security)
 19. [Branch & Contribution Model](#19-branch--contribution-model)
 20. [Troubleshooting](#20-troubleshooting)
-21. [License & Status](#21-license--status)
+21. [Licence & Status](#21-license--status)
 
 ---
 
@@ -380,7 +380,7 @@ Produces a self-contained Windows bundle via PyInstaller:
   charged the numba compile cost.
 
 Deployment is a file copy. There is no installer service, registry change, or
-admin requirement beyond writing to the install directory.
+admin requirement beyond writing to the install/ directory.
 
 ---
 
@@ -451,9 +451,9 @@ single-language design removes the FFI trust boundary the Rust branch must defen
 
 ---
 
-## 21. License & Status
+## 21. Licence & Status
 
-**License:** Proprietary — internal company use. Documentation may be shared as
+**Licence:** Proprietary — internal company use. Documentation may be shared as
 portfolio material; internal datasets, generated workbooks, logs, exports, and
 credentials must never be committed.
 

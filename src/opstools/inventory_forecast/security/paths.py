@@ -24,6 +24,7 @@ MAX_FILE_SIZE_BYTES: int = 50 * 1024 * 1024
 ALLOWED_EXTENSIONS: frozenset[str] = frozenset({".csv", ".xls", ".xlsx", ".xlsm"})
 
 
+# noinspection GrazieInspection
 def validate_local_path(path: Path) -> None:
     """Reject any path that is not a safe, local, allowlisted source file.
 

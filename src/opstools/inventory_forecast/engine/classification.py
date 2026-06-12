@@ -27,6 +27,7 @@ CV2_THRESHOLD: float = 0.49
 _MONTHLY: str = "1mo"
 
 
+# noinspection GrazieInspection
 def build_abc_classification(pv: pl.LazyFrame, cfg: Settings) -> pl.LazyFrame:
     """Classify each (supplier, item) into an ABC band by cumulative PV value.
 

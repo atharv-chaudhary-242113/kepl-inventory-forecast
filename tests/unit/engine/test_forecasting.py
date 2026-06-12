@@ -151,7 +151,7 @@ def test_forecast_quantity_is_non_negative() -> None:
     sbc = _sbc([("Acme", "Wire", "smooth")])
     out = forecast_demand(demand, sbc, horizon=6, cfg=Settings()).collect()
 
-    assert (out["forecast_quantity"] >= 0.0).all()
+    assert (out["forecast_quantity"] >= 0.0).__bool__()
 
 
 def test_forecast_value_dtype_is_decimal() -> None:
@@ -183,8 +183,8 @@ def test_confidence_score_in_unit_interval() -> None:
     out = forecast_demand(demand, sbc, horizon=3, cfg=Settings()).collect()
 
     conf = out["confidence_score"]
-    assert (conf > 0.0).all()
-    assert (conf <= 1.0).all()
+    assert (conf > 0.0).__bool__()
+    assert (conf <= 1.0).__bool__()
 
 
 # --- Period continuity ----------------------------------------------------
@@ -192,7 +192,7 @@ def test_confidence_score_in_unit_interval() -> None:
 
 def test_forecast_periods_are_consecutive_months_after_history() -> None:
     """Forecast months follow the last observed month, one month apart."""
-    # 12 months of history: 2023-01 .. 2023-12.
+    # 12 months of history: 2023-01...2023-12.
     demand = _demand(_smooth_series(n=12))
     sbc = _sbc([("Acme", "Wire", "smooth")])
     out = forecast_demand(demand, sbc, horizon=3, cfg=Settings()).collect()
