@@ -54,7 +54,7 @@ No code below the line may trigger work above it.
 
 ### 4.1 `domain` — pure types
 Enums (`SourceKind`, `AbcClass`, `SbcClass`), Pydantic models for records and
-results, and the `KeplError` exception hierarchy. No I/O, no dependencies on any
+results, and the `InventoryForecastError` exception hierarchy. No I/O, no dependencies on any
 other layer. Everything else may import `domain`; `domain` imports nothing of ours.
 
 ### 4.2 `ingestion` — untrusted input → clean frames
@@ -137,7 +137,7 @@ design (the cache is pre-aggregated).
 
 ## 8. Error Handling Strategy
 
-All recoverable failures raise a `KeplError` subclass with an actionable message.
+All recoverable failures raise a `InventoryForecastError` subclass with an actionable message.
 Ingestion converts malformed input into `SchemaError`/`ValidationError` at the
 boundary; the workbook layer raises `WorkbookVersionError` on mismatch; services
 translate these into user-facing messages without leaking stack traces into the UI.

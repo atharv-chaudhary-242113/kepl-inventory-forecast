@@ -33,7 +33,7 @@ comments are kept even where the code is "obvious to the interpreter," because t
 document the reasoning, not the syntax.
 
 ## Errors
-- Raise `KeplError` subclasses with actionable messages that name the offending file,
+- Raise `InventoryForecastError` subclasses with actionable messages that name the offending file,
   column, or value where possible.
 - Never swallow an exception silently. Never raise a bare `Exception`.
 - Validation failures are expected control flow at the ingestion boundary; broken

@@ -1,77 +1,110 @@
-"""Demand reconstruction from procurement lifecycle events.
+"""Demand reconstruction from replenishment intent.
 
-DOMAIN_RULES.md ("Demand Reconstruction") states the system never receives a
-direct sales ledger, so historical demand must be *inferred* from receipts (GRN),
-purchases (PV), and stock snapshots. This module produces the chronological,
-monthly per-item demand series the forecasting and classification layers consume.
+DOMAIN_RULES.md defines the business as operating a replenishment-driven
+inventory model rather than exposing a direct sales ledger.
 
-The exact reconstruction methodology is an explicit "Pending Business Decision",
-so this is the sanctioned architectural baseline: pool the GRN and PV movement
-lines, bucket them to month-start, and sum quantity and value per item-month.
-The function is pure over Polars LazyFrames (ARCHITECTURE.md sec 4.3).
+When inventory is consumed internally, used in production, or sold to a
+customer, the business initiates replenishment by creating a Purchase Order
+Voucher (POV). This makes the POV the earliest observable demand signal in the
+ERP workflow and the canonical source for demand reconstruction.
+
+Document roles:
+
+POV
+    Replenishment intent.
+    Primary source for demand reconstruction.
+
+GRN
+    Physical receipt confirmation.
+    Used by lead-time and supplier-performance analytics.
+
+PV
+    Financial recognition of purchases.
+    Used by accounting and financial analytics.
+
+Closing Stock
+    Inventory-position snapshot.
+    Represents the stock level maintained by the business and serves as the
+    baseline inventory reference.
+
+Demand is therefore reconstructed directly from POV activity rather than
+indirectly inferred from downstream procurement lifecycle events.
 """
 
 import polars as pl
 
-# WORKBOOK_SCHEMA.md fixes Demand_History granularity to *monthly*; we truncate
-# each transaction date to the first of its month so receipts within one month
-# collapse into a single demand period.
+# WORKBOOK_SCHEMA.md fixes Demand_History granularity to monthly periods.
+# Each transaction date is truncated to the first day of its month so all
+# replenishment activity within the same month aggregates into one demand
+# period.
 _MONTHLY: str = "1mo"
 
 
 def reconstruct_demand(
-    grn: pl.LazyFrame,
-    pv: pl.LazyFrame,
-    closing: pl.LazyFrame,
+    pov: pl.LazyFrame,
 ) -> pl.LazyFrame:
-    """Reconstruct a monthly per-item demand series from receipts and purchases.
+    """Construct a monthly per-item demand history from POV records.
+
+    The business creates a POV when inventory must be replenished following
+    consumption, production usage, or customer sales. Consequently, POV rows
+    are treated as the canonical demand signal.
 
     Args:
-        grn: Canonical GRN ledger (receipts) — the physical movement signal.
-        pv: Canonical PV ledger (purchases) — the authoritative value signal.
-        closing: Canonical closing-stock snapshot. Accepted as part of the
-            documented contract but not yet consumed: the snapshot-delta
-            methodology is a Pending Business Decision (DOMAIN_RULES.md), so the
-            baseline reconstructs demand from movement lines alone. Wiring it in
-            must not change this signature.
+        pov:
+            Canonical Purchase Order Voucher ledger.
 
     Returns:
-        A LazyFrame with schema ``[period(Date, month-start), supplier(Utf8),
-        item(Utf8), demand_quantity(Float64), demand_value(Decimal)]`` — the
-        Demand_History sheet contract (WORKBOOK_SCHEMA.md). One row per
-        (supplier, item, month) with quantity and value summed within the month.
-        ``demand_value`` stays Decimal so the accumulation is exact
-        (THREAT_MODEL.md "Floating-Point Errors").
-    """
-    # `closing` is intentionally unused in the baseline methodology; see the
-    # docstring. Referencing the contract parameter keeps the public signature
-    # stable for when snapshot deltas are wired in.
-    del closing
+        LazyFrame with schema:
 
-    merged = pl.concat(
-        [_project_demand(grn), _project_demand(pv)],
-        how="vertical",
-    )
+        [
+            period(Date, month-start),
+            supplier(Utf8),
+            item(Utf8),
+            demand_quantity(Float64),
+            demand_value(Decimal),
+        ]
+
+        One row per (supplier, item, month).
+
+        demand_quantity
+            Monthly replenishment quantity.
+
+        demand_value
+            Monthly replenishment value.
+
+        Decimal accumulation is preserved to avoid financial rounding drift.
+    """
     return (
-        merged.group_by(["supplier", "item", "period"])
+        _project_demand(pov)
+        .group_by(["period", "supplier", "item"])
         .agg(
             pl.col("demand_quantity").sum(),
             pl.col("demand_value").sum(),
         )
-        .sort(["supplier", "item", "period"])
-        .select(["period", "supplier", "item", "demand_quantity", "demand_value"])
+        .sort(["period", "supplier", "item"])
+        .select(
+            [
+                "period",
+                "supplier",
+                "item",
+                "demand_quantity",
+                "demand_value",
+            ]
+        )
     )
 
 
-def _project_demand(ledger: pl.LazyFrame) -> pl.LazyFrame:
-    """Project a canonical movement ledger onto the demand contribution shape.
+def _project_demand(pov: pl.LazyFrame) -> pl.LazyFrame:
+    """Project POV records onto the demand-history shape.
 
-    Rows whose date is null are dropped: a movement with no date cannot sit on a
-    chronological axis, so it cannot contribute to a time series. `dt.truncate`
-    snaps each date back to its month-start, which is what makes same-month rows
-    aggregate into one period upstream.
+    Rows with null dates are excluded because they cannot be placed on a
+    chronological forecasting axis.
+
+    Dates are truncated to month-start boundaries so multiple replenishment
+    events occurring within the same month contribute to a single demand
+    period.
     """
-    return ledger.filter(pl.col("date").is_not_null()).select(
+    return pov.filter(pl.col("date").is_not_null()).select(
         pl.col("date").dt.truncate(_MONTHLY).alias("period"),
         pl.col("supplier"),
         pl.col("item"),

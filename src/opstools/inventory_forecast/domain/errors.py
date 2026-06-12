@@ -5,10 +5,6 @@ Every recoverable failure crossing a layer boundary is an instance of
 attach an actionable message naming the offending file, column, or value
 (CODING_STANDARDS.md). Programmer errors (broken invariants) are *not* modelled
 here — they fail fast as ordinary exceptions.
-
-Note the base is `InventoryForecastError`, not the older `KeplError`: the
-package is `opstools.inventory_forecast`, so the `Kepl` prefix is dropped to
-keep the name aligned with the namespace.
 """
 
 

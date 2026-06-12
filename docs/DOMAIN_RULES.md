@@ -408,22 +408,38 @@ CV² ≥ 0.49
 
 ---
 
-# Demand Reconstruction
+# Demand Reconstruction Rule
 
-The system does not receive direct sales ledgers.
+The business follows a replenishment-driven inventory model.
 
-Historical demand must be reconstructed using:
+Purchase Order Vouchers (POV) are created when inventory must be replenished
+after consumption, production usage, or customer sales.
 
+Consequently, POV records are treated as the primary observable demand signal.
+
+Closing Stock snapshots represent the inventory position maintained by the
+business and are used as the reference inventory level against which
+replenishment decisions are made.
+
+Document roles:
 ```text
+POV
+    Replenishment intent.
+    Primary source for demand reconstruction.
+
 GRN
+    Physical receipt confirmation.
+    Used to validate supplier fulfillment and lead-time calculations.
+
 PV
-Closing Stock
+    Financial recognition of purchases.
+    Used for accounting and financial analytics.
+
+Demand ≈ Replenishment Quantity (POV)
 ```
 
-The reconstruction process must generate a chronological demand series suitable for forecasting.
-
-The exact reconstruction methodology may evolve independently of the forecasting layer.
-
+The forecasting engine therefore models replenishment demand rather than
+attempting to infer demand indirectly from inventory movements.
 ---
 
 # Forecasting
@@ -647,7 +663,6 @@ Workbooks are the canonical persisted representation of system outputs.
 
 The following areas require future validation:
 
-* Exact demand reconstruction methodology
 * Freight accounting interpretation
 * PV accounting semantics
 * Supplier grouping beyond parenthetical normalization
