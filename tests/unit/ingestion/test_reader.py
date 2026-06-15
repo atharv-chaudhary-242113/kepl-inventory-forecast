@@ -13,7 +13,7 @@ from opstools.inventory_forecast.domain.errors import (
     MissingColumnError,
     SecurityError,
 )
-from opstools.inventory_forecast.ingestion import read_source
+from opstools.inventory_forecast.ingestion.reader import _extract_table, read_source
 
 LEDGER_HEADER = [
     "Date",
@@ -176,3 +176,21 @@ def test_negative_value_is_validation_error(make_csv):
 def test_missing_file_is_data_validation_error(tmp_path):
     with pytest.raises(DataValidationError):
         read_source(tmp_path / "ghost.csv", SourceKind.POV)
+
+
+def test_extract_table_renames_duplicate_headers() -> None:
+    grid = pl.DataFrame(
+        [
+            ["Item", "Item", "Qty"],
+            ["A", "B", "1"],
+        ],
+        orient="row",
+    )
+
+    result = _extract_table(grid, 0)
+
+    assert result.columns == [
+        "Item",
+        "__unnamed_1",
+        "Qty",
+    ]

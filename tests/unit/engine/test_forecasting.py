@@ -12,9 +12,10 @@ from datetime import date
 from decimal import Decimal
 
 import polars as pl
+import pytest
 
 from opstools.inventory_forecast.config.settings import Settings
-from opstools.inventory_forecast.engine.forecasting import forecast_demand
+from opstools.inventory_forecast.engine.forecasting import _as_polars, forecast_demand
 
 # Labels each SBC class is allowed to be served by (class candidates + baselines),
 # mirroring _CLASS_CANDIDATES + _BASELINES mapped through _ALIAS_TO_MODEL.
@@ -317,6 +318,33 @@ def test_supplier_and_item_are_part_of_the_key() -> None:
 
     assert set(out["supplier"].to_list()) == {"Acme", "Globex"}
     assert out.height == 4
+
+
+# --- DataFrame Conversion -------------------------------------------------
+
+def test_as_polars_converts_pandas_dataframe() -> None:
+    import pandas as pd
+
+    frame = pd.DataFrame(
+        {
+            "item_id": ["A"],
+            "value": [1.0],
+        }
+    )
+
+    result = _as_polars(frame)
+
+    assert isinstance(result, pl.DataFrame)
+    assert result.shape == (1, 2)
+
+
+def test_as_polars_rejects_unexpected_type() -> None:
+    with pytest.raises(
+        TypeError,
+        match="unexpected statsforecast return type",
+    ):
+        _as_polars("not a dataframe")
+
 
 
 # --- Components -----------------------------------------------------------

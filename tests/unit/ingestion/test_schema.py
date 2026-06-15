@@ -10,6 +10,12 @@ from opstools.inventory_forecast.domain.errors import (
 )
 from opstools.inventory_forecast.ingestion import schema
 
+# noinspection PyProtectedMember
+from opstools.inventory_forecast.ingestion.schema import (
+    _first_offending,
+    _validate,
+)
+
 
 @pytest.mark.parametrize("kind", [SourceKind.POV, SourceKind.GRN, SourceKind.PV])
 def test_ledger_kinds_are_ledgers(kind):
@@ -257,3 +263,40 @@ def test_finalize_closing_stock_drops_empty_item_separator_rows():
 
     assert out.height == 1
     assert out["item"].to_list() == ["Wire"]
+
+
+def test_first_offending_returns_empty_string_when_no_rows_match() -> None:
+    df = pl.DataFrame(
+        {
+            "qty": [1, 2, 3],
+        }
+    )
+
+    result = _first_offending(
+        df,
+        pl.col("qty") > 100,
+        "qty",
+    )
+
+    assert result == ""
+
+
+def test_validate_rejects_null_supplier_in_ledger() -> None:
+    df = pl.DataFrame(
+        {
+            "supplier": [None],
+            "item": ["Wire"],
+            "__qty": [1.0],
+            "__price": [1],
+            "__amount": [1],
+        }
+    )
+
+    with pytest.raises(DataValidationError) as exc_info:
+        _validate(
+            df=df,
+            ledger=True,
+            source_label="pov.xlsx",
+        )
+
+    assert "found a record with no supplier" in str(exc_info.value)

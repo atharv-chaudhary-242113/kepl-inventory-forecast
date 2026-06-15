@@ -123,9 +123,7 @@ def test_lead_time_stddev_is_null_for_single_delivery(ledger) -> None:
     fin = build_financial_summary(ledger([]), cfg)
 
     lt = compute_lead_time(pov, grn)
-    out = build_supplier_analysis(
-        lt, build_pending_deliveries(lt), fin, cfg
-    ).collect()
+    out = build_supplier_analysis(lt, build_pending_deliveries(lt), fin, cfg).collect()
 
     assert out.row(0, named=True)["lead_time_stddev"] is None
     assert out.row(0, named=True)["average_lead_time"] == 5.0
@@ -169,9 +167,7 @@ def test_risk_score_bounded_in_unit_interval(ledger) -> None:
     fin = build_financial_summary(ledger([]), cfg)
     lt = compute_lead_time(pov, grn)
 
-    out = build_supplier_analysis(
-        lt, build_pending_deliveries(lt), fin, cfg
-    ).collect()
+    out = build_supplier_analysis(lt, build_pending_deliveries(lt), fin, cfg).collect()
 
     row = _row_by_supplier(out, "Acme")
     assert 0.0 <= row["risk_score"] <= 1.0
@@ -184,9 +180,7 @@ def test_supplier_output_column_order_matches_contract(ledger) -> None:
     cfg = Settings()
     fin = build_financial_summary(ledger([]), cfg)
 
-    out = build_supplier_analysis(
-        lt, build_pending_deliveries(lt), fin, cfg
-    ).collect()
+    out = build_supplier_analysis(lt, build_pending_deliveries(lt), fin, cfg).collect()
 
     assert out.columns == _OUTPUT_COLUMNS
 
