@@ -68,8 +68,6 @@ def _status_expr() -> pl.Expr:
         .then(pl.lit(FulfillmentStatus.PENDING.value))
         .when(rate < 1.0)
         .then(pl.lit(FulfillmentStatus.PARTIAL.value))
-        .when(rate > 1.0)
-        .then(pl.lit(FulfillmentStatus.OVER_DELIVERED.value))
         .otherwise(pl.lit(FulfillmentStatus.COMPLETE.value))
         .alias("fulfillment_status")
     )

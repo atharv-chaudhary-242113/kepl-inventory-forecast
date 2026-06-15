@@ -138,7 +138,6 @@ class FulfillmentStatus(StrEnum):
     PENDING = "pending"
     PARTIAL = "partial"
     COMPLETE = "complete"
-    OVER_DELIVERED = "over_delivered"
 
 
 class SupplierDependencyLevel(StrEnum):

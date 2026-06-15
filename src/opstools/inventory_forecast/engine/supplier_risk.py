@@ -125,7 +125,10 @@ def build_supplier_analysis(
             .otherwise(None)
             .alias("_fill_rate"),
             # CV = stddev / mean lead time; a delivery-consistency proxy in [0, 1].
-            pl.when(pl.col("average_lead_time") > 0)
+            pl.when(
+                (pl.col("average_lead_time") > 0)
+                & pl.col("lead_time_stddev").is_not_null()
+            )
             .then(pl.col("lead_time_stddev") / pl.col("average_lead_time"))
             .otherwise(0.0)
             .alias("_lt_cv"),

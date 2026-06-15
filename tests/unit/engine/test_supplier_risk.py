@@ -88,9 +88,10 @@ def test_total_orders_dedupes_across_allocation_rows(ledger) -> None:
     )
     pv = ledger([])
     cfg = Settings()
+    fin = build_financial_summary(pv, cfg)
 
     lt = compute_lead_time(pov, grn)
-    out = build_supplier_analysis(lt, build_pending_deliveries(lt), pv, cfg).collect()
+    out = build_supplier_analysis(lt, build_pending_deliveries(lt), fin, cfg).collect()
 
     row = _row_by_supplier(out, "Acme")
     assert row["total_orders"] == 1
@@ -119,10 +120,11 @@ def test_lead_time_stddev_is_null_for_single_delivery(ledger) -> None:
     pov = ledger([(date(2025, 1, 1), "O1", "Acme", "Wire", 5.0, 50.0)])
     grn = ledger([(date(2025, 1, 6), "G1", "Acme", "Wire", 5.0, 50.0)])
     cfg = Settings()
+    fin = build_financial_summary(ledger([]), cfg)
 
     lt = compute_lead_time(pov, grn)
     out = build_supplier_analysis(
-        lt, build_pending_deliveries(lt), ledger([]), cfg
+        lt, build_pending_deliveries(lt), fin, cfg
     ).collect()
 
     assert out.row(0, named=True)["lead_time_stddev"] is None
@@ -164,10 +166,11 @@ def test_risk_score_bounded_in_unit_interval(ledger) -> None:
     )
     grn = ledger([(date(2025, 1, 5), "G1", "Acme", "Wire", 2.0, 20.0)])
     cfg = Settings()
-
+    fin = build_financial_summary(ledger([]), cfg)
     lt = compute_lead_time(pov, grn)
+
     out = build_supplier_analysis(
-        lt, build_pending_deliveries(lt), ledger([]), cfg
+        lt, build_pending_deliveries(lt), fin, cfg
     ).collect()
 
     row = _row_by_supplier(out, "Acme")
@@ -178,8 +181,11 @@ def test_risk_score_bounded_in_unit_interval(ledger) -> None:
 def test_supplier_output_column_order_matches_contract(ledger) -> None:
     """Schema must equal the Supplier_Analysis sheet column order."""
     lt = compute_lead_time(ledger([]), ledger([]))
+    cfg = Settings()
+    fin = build_financial_summary(ledger([]), cfg)
+
     out = build_supplier_analysis(
-        lt, build_pending_deliveries(lt), ledger([]), Settings()
+        lt, build_pending_deliveries(lt), fin, cfg
     ).collect()
 
     assert out.columns == _OUTPUT_COLUMNS

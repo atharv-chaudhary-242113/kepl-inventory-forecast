@@ -46,17 +46,6 @@ def test_partial_when_some_delivered(ledger) -> None:
     assert row["fulfillment_status"] == FulfillmentStatus.PARTIAL.value
 
 
-def test_over_delivered_when_receipts_exceed_orders(ledger) -> None:
-    """delivered > ordered -> status over_delivered."""
-    pov = ledger([(date(2025, 1, 1), "O1", "Acme", "Wire", 5.0, 50.0)])
-    grn = ledger([(date(2025, 1, 11), "G1", "Acme", "Wire", 8.0, 80.0)])
-
-    out = build_fill_rate(compute_lead_time(pov, grn)).collect()
-    row = out.row(0, named=True)
-    assert row["fill_rate"] > 1.0
-    assert row["fulfillment_status"] == FulfillmentStatus.OVER_DELIVERED.value
-
-
 def test_ordered_qty_dedupes_across_receipts(ledger) -> None:
     """An order split across two receipts must not multi-count its ordered_qty."""
     pov = ledger([(date(2025, 1, 1), "O1", "Acme", "Wire", 10.0, 100.0)])
