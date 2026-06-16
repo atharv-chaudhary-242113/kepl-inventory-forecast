@@ -322,6 +322,7 @@ def test_supplier_and_item_are_part_of_the_key() -> None:
 
 # --- DataFrame Conversion -------------------------------------------------
 
+
 def test_as_polars_converts_pandas_dataframe() -> None:
     import pandas as pd
 
@@ -344,7 +345,6 @@ def test_as_polars_rejects_unexpected_type() -> None:
         match="unexpected statsforecast return type",
     ):
         _as_polars("not a dataframe")
-
 
 
 # --- Components -----------------------------------------------------------

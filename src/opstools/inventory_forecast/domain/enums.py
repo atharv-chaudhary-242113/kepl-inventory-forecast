@@ -200,3 +200,25 @@ class TrendDirection(StrEnum):
     UP = "up"
     DOWN = "down"
     FLAT = "flat"
+
+
+# ======================================================================================
+# Worksheet Metadata
+# ======================================================================================
+
+
+class WorksheetName(StrEnum):
+    """Name of the worksheet."""
+
+    METADATA = "Metadata"
+    DEMAND_HISTORY = "Demand_History"
+    FORECASTS = "Forecasts"
+    SUPPLIER_ANALYSIS = "Supplier_Analysis"
+    SUPPLIER_PARTNERSHIPS = "Supplier_Partnerships"
+    LEAD_TIME_ANALYSIS = "Lead_Time_Analysis"
+    PENDING_DELIVERIES = "Pending_Deliveries"
+    FINANCIAL_SUMMARY = "Financial_Summary"
+    ABC_CLASSIFICATION = "ABC_Classification"
+    SBC_CLASSIFICATION = "SBC_Classification"
+    INVENTORY_VALUATION = "Inventory_Valuation"
+    DASHBOARD_CACHE = "Dashboard_Cache"

@@ -130,3 +130,11 @@ class DashboardGenerationError(WorkbookError):
 
 class WorksheetMetaDataError(WorkbookError):
     """Raised when a worksheet's metadata cannot be read."""
+
+
+class WorkbookVersionError(WorkbookError):
+    """Raised when a workbook schema version is incompatible."""
+
+
+class WorksheetSchemaError(WorkbookError):
+    """Raised when a worksheet violates the workbook contract."""
