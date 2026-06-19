@@ -12,6 +12,7 @@ dependencies = [
     "polars>=1.41.2",
     "pydantic>=2.13.4",
     "pyside6>=6.11.1",
+    "python-calamine>=0.7.0",
     "statsforecast>=2.0.3",
     "xlsxwriter>=3.2.9",
 ]
