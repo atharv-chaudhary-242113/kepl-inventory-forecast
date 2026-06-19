@@ -72,13 +72,13 @@ def test_validate_workbook_version_rejects_invalid_version() -> None:
 
 
 def test_validate_metadata_accepts_valid_metadata(
-        valid_metadata: WorkbookMeta,
+    valid_metadata: WorkbookMeta,
 ) -> None:
     validate_metadata(valid_metadata)
 
 
 def test_validate_metadata_rejects_zero_forecast_horizon(
-        valid_metadata: WorkbookMeta,
+    valid_metadata: WorkbookMeta,
 ) -> None:
     meta = valid_metadata.model_copy(
         update={"forecast_horizon": 0},
@@ -89,7 +89,7 @@ def test_validate_metadata_rejects_zero_forecast_horizon(
 
 
 def test_validate_metadata_rejects_negative_suppliers(
-        valid_metadata: WorkbookMeta,
+    valid_metadata: WorkbookMeta,
 ) -> None:
     meta = valid_metadata.model_copy(
         update={"total_suppliers": -1},
@@ -100,7 +100,7 @@ def test_validate_metadata_rejects_negative_suppliers(
 
 
 def test_validate_metadata_rejects_negative_items(
-        valid_metadata: WorkbookMeta,
+    valid_metadata: WorkbookMeta,
 ) -> None:
     meta = valid_metadata.model_copy(
         update={"total_items": -1},
@@ -111,7 +111,7 @@ def test_validate_metadata_rejects_negative_items(
 
 
 def test_validate_metadata_rejects_negative_records(
-        valid_metadata: WorkbookMeta,
+    valid_metadata: WorkbookMeta,
 ) -> None:
     meta = valid_metadata.model_copy(
         update={"total_records": -1},
@@ -122,7 +122,7 @@ def test_validate_metadata_rejects_negative_records(
 
 
 def test_validate_metadata_rejects_negative_processing_time_seconds(
-        valid_metadata: WorkbookMeta,
+    valid_metadata: WorkbookMeta,
 ) -> None:
     meta = valid_metadata.model_copy(
         update={"processing_time_seconds": -1.0},
@@ -135,6 +135,7 @@ def test_validate_metadata_rejects_negative_processing_time_seconds(
 # ======================================================================================
 # Column validation
 # ======================================================================================
+
 
 def test_validate_sheet_columns_accepts_metadata_sheet() -> None:
     validate_sheet_columns(
@@ -202,7 +203,7 @@ def test_validate_sheet_columns_rejects_missing_and_unexpected() -> None:
 def test_validate_sheet_columns_rejects_unknown_sheet() -> None:
     with pytest.raises(WorksheetSchemaError):
         validate_sheet_columns(
-            "unknown_sheet",        # type: ignore[arg-type]
+            "unknown_sheet",  # type: ignore[arg-type]
             set(),
         )
 
@@ -242,7 +243,7 @@ def test_get_sheet_schema_returns_schema() -> None:
 def test_get_sheet_schema_rejects_unknown_sheet() -> None:
     with pytest.raises(WorksheetSchemaError):
         get_sheet_schema(
-            "fake_sheet",   # type: ignore[arg-type]
+            "fake_sheet",  # type: ignore[arg-type]
         )
 
 
