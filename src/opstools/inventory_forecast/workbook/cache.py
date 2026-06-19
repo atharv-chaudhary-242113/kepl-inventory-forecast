@@ -144,6 +144,15 @@ def from_dataframe(
             _DATASET_COLUMN
         )
 
+        drop_cols = [
+            col
+            for col in dataset_frame.columns
+            if dataset_frame.get_column(col).null_count() == dataset_frame.height
+        ]
+
+        if drop_cols:
+            dataset_frame = dataset_frame.drop(drop_cols)
+
         datasets.append(
             CacheDataset(
                 name=name,

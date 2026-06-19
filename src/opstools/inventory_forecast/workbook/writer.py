@@ -75,7 +75,6 @@ def write_workbook(
     try:
         with xlsxwriter.Workbook(
             temp_path,
-            {"constant_memory": True},
         ) as workbook:
 
             for sheet_name in schema.required_sheet_names():

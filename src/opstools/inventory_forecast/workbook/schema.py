@@ -243,6 +243,9 @@ def validate_sheet_columns(
     missing = required - columns
     unexpected = columns - required
 
+    if sheet_name == WorksheetName.DASHBOARD_CACHE:
+        unexpected = set()
+
     if missing or unexpected:
         parts: list[str] = []
 
@@ -276,4 +279,6 @@ def is_known_sheet(
     sheet_name: str | WorksheetName,
 ) -> bool:
     """Return True if worksheet is known."""
+    if not isinstance(sheet_name, WorksheetName):
+        return False
     return sheet_name in WORKSHEETS

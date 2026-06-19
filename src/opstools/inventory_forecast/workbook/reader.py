@@ -150,6 +150,7 @@ def read_worksheet(
             sheet_name=sheet_name.value,
             engine="calamine",
         )
+
     except Exception as exc:
         raise WorkbookError(
             f"Failed to read worksheet "
