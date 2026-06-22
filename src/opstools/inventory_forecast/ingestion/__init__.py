@@ -5,17 +5,17 @@ Re-exports the public entry point so callers write
 `domain` and `security` (ARCHITECTURE.md sec 4.2).
 """
 
-from header_detection import (
+from .header_detection import (
     detect_header_row,
     normalize_token,
 )
-from normalize import (
+from .normalize import (
     blank_to_null_expr,
     forward_fill_supplier_expr,
     normalize_supplier_expr,
 )
-from reader import read_source
-from schema import (
+from .reader import read_source
+from .schema import (
     canonical_columns,
     column_mapping,
     finalize_records,

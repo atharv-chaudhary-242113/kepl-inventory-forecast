@@ -1,7 +1,5 @@
 """Application configuration."""
 
-from settings import Settings
+from .settings import Settings
 
-__all__ = (
-    "Settings",
-)
+__all__ = ("Settings",)

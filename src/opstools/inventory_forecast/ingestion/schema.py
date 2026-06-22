@@ -19,16 +19,16 @@ from collections.abc import Mapping
 
 import polars as pl
 
-from opstools.inventory_forecast.domain import SourceKind
 from opstools.inventory_forecast.domain import (
     DataValidationError,
     MissingColumnError,
+    SourceKind,
 )
-from opstools.inventory_forecast.ingestion import normalize_token
 from opstools.inventory_forecast.ingestion import (
     blank_to_null_expr,
     forward_fill_supplier_expr,
     normalize_supplier_expr,
+    normalize_token,
 )
 
 # Money is held as Polars `Decimal` from the ingestion boundary onward so that

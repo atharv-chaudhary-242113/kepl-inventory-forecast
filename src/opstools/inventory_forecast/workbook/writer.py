@@ -62,9 +62,7 @@ def write_workbook(
         exist_ok=True,
     )
 
-    temp_path = output_path.with_name(
-        f"{output_path.stem}.tmp.xlsx"
-    )
+    temp_path = output_path.with_name(f"{output_path.stem}.tmp.xlsx")
 
     logger.info(
         "Writing workbook to %s",
@@ -75,9 +73,7 @@ def write_workbook(
         with xlsxwriter.Workbook(
             temp_path,
         ) as workbook:
-
             for sheet_name in schema.required_sheet_names():
-
                 logger.debug(
                     "Writing worksheet %s",
                     sheet_name.value,
@@ -137,27 +133,18 @@ def _validate_dataset_mapping(
     ],
 ) -> None:
     """Validate worksheet coverage before writing."""
-    required_sheets = set(
-        schema.required_sheet_names()
-    )
+    required_sheets = set(schema.required_sheet_names())
 
     special_sheets = {
         WorksheetName.METADATA,
         WorksheetName.DASHBOARD_CACHE,
     }
 
-    expected_datasets = (
-        required_sheets - special_sheets
-    )
+    expected_datasets = required_sheets - special_sheets
 
-    provided_datasets = set(
-        datasets.keys()
-    )
+    provided_datasets = set(datasets.keys())
 
-    missing = (
-        expected_datasets
-        - provided_datasets
-    )
+    missing = expected_datasets - provided_datasets
 
     if missing:
         raise ValueError(
@@ -171,10 +158,7 @@ def _validate_dataset_mapping(
             )
         )
 
-    unexpected = (
-        provided_datasets
-        - expected_datasets
-    )
+    unexpected = provided_datasets - expected_datasets
 
     if unexpected:
         raise ValueError(
@@ -223,21 +207,16 @@ def _metadata_dataframe(
     therefore timezone information is stripped before
     workbook persistence.
     """
-    dataframe = pl.DataFrame(
-        [meta.model_dump()]
-    )
+    dataframe = pl.DataFrame([meta.model_dump()])
 
-    generated_at_dtype = dataframe.schema.get(
-        "generated_at"
-    )
+    generated_at_dtype = dataframe.schema.get("generated_at")
 
     if isinstance(
         generated_at_dtype,
         pl.Datetime,
     ):
         dataframe = dataframe.with_columns(
-            pl.col("generated_at")
-            .dt.replace_time_zone(None)
+            pl.col("generated_at").dt.replace_time_zone(None)
         )
 
     return dataframe

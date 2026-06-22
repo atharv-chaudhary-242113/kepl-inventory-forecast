@@ -20,6 +20,7 @@ from opstools.inventory_forecast.workbook.cache import DashboardCache
 @dataclass(frozen=True, slots=True)
 class DashboardState:
     """Fully materialized dashboard state."""
+
     metadata: WorkbookMeta
     cache: DashboardCache
 

@@ -50,7 +50,6 @@ class WorkbookService:
             datasets=datasets,
         )
 
-
     @staticmethod
     def validate_workbook(
         path: Path,
@@ -72,7 +71,6 @@ class WorkbookService:
         validate_workbook_completeness(
             path,
         )
-
 
     @staticmethod
     def load_dashboard_state(

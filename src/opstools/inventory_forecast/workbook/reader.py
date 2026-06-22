@@ -72,14 +72,10 @@ def read_metadata(
     )
 
     if dataframe.is_empty():
-        raise WorksheetMetaDataError(
-            "Metadata worksheet is empty."
-        )
+        raise WorksheetMetaDataError("Metadata worksheet is empty.")
 
     if dataframe.height != 1:
-        raise WorksheetMetaDataError(
-            "Metadata worksheet must contain exactly one row."
-        )
+        raise WorksheetMetaDataError("Metadata worksheet must contain exactly one row.")
 
     record = dataframe.row(
         0,
@@ -87,18 +83,12 @@ def read_metadata(
     )
 
     try:
-        metadata = WorkbookMeta(
-            **record
-        )
+        metadata = WorkbookMeta(**record)
     except ValidationError as exc:
-        raise WorksheetMetaDataError(
-            f"Metadata validation failed: {exc}"
-        ) from exc
+        raise WorksheetMetaDataError(f"Metadata validation failed: {exc}") from exc
 
     try:
-        schema.validate_metadata(
-            metadata
-        )
+        schema.validate_metadata(metadata)
     except Exception as exc:
         raise WorksheetMetaDataError(
             f"Metadata schema validation failed: {exc}"
@@ -122,9 +112,7 @@ def read_cache(
     )
 
     try:
-        return cache_from_dataframe(
-            dataframe
-        )
+        return cache_from_dataframe(dataframe)
     except ValueError as exc:
         raise WorksheetSchemaError(
             f"Failed to reconstruct dashboard cache: {exc}"
@@ -153,8 +141,7 @@ def read_worksheet(
 
     except Exception as exc:
         raise WorkbookError(
-            f"Failed to read worksheet "
-            f"{sheet_name.value}: {exc}"
+            f"Failed to read worksheet {sheet_name.value}: {exc}"
         ) from exc
 
     try:
@@ -164,13 +151,11 @@ def read_worksheet(
         )
     except Exception as exc:
         raise WorksheetSchemaError(
-            f"Worksheet {sheet_name.value} "
-            f"failed schema validation: {exc}"
+            f"Worksheet {sheet_name.value} failed schema validation: {exc}"
         ) from exc
 
     logger.debug(
-        "Loaded worksheet %s "
-        "(rows=%s, cols=%s)",
+        "Loaded worksheet %s (rows=%s, cols=%s)",
         sheet_name.value,
         dataframe.height,
         dataframe.width,
@@ -184,19 +169,13 @@ def _validate_workbook_path(
 ) -> None:
     """Validate workbook path before any I/O."""
     if not path.exists():
-        raise WorkbookError(
-            f"Workbook does not exist: {path}"
-        )
+        raise WorkbookError(f"Workbook does not exist: {path}")
 
     if not path.is_file():
-        raise WorkbookError(
-            f"Workbook path is not a file: {path}"
-        )
+        raise WorkbookError(f"Workbook path is not a file: {path}")
 
     if path.suffix.lower() != ".xlsx":
-        raise WorkbookError(
-            f"Expected .xlsx workbook, got: {path.name}"
-        )
+        raise WorkbookError(f"Expected .xlsx workbook, got: {path.name}")
 
 
 def validate_workbook_completeness(
@@ -206,36 +185,20 @@ def validate_workbook_completeness(
     present before attempting workbook reconstruction.
     """  # noqa: D205
     try:
-        workbook = CalamineWorkbook.from_path(
-            str(path)
-        )
+        workbook = CalamineWorkbook.from_path(str(path))
     except Exception as exc:
-        raise WorkbookError(
-            f"Failed to inspect workbook: {exc}"
-        ) from exc
+        raise WorkbookError(f"Failed to inspect workbook: {exc}") from exc
 
-    available_sheets = set(
-        workbook.sheet_names
-    )
+    available_sheets = set(workbook.sheet_names)
 
-    expected_sheets = {
-        sheet.value
-        for sheet in schema.required_sheet_names()
-    }
+    expected_sheets = {sheet.value for sheet in schema.required_sheet_names()}
 
-    missing_sheets = (
-        expected_sheets
-        - available_sheets
-    )
+    missing_sheets = expected_sheets - available_sheets
 
     if missing_sheets:
         raise WorkbookError(
             "Workbook is missing required worksheets: "
-            + ", ".join(
-                sorted(missing_sheets)
-            )
+            + ", ".join(sorted(missing_sheets))
         )
 
-    logger.debug(
-        "Workbook completeness validation passed."
-    )
+    logger.debug("Workbook completeness validation passed.")

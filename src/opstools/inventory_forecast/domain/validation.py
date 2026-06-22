@@ -18,8 +18,8 @@ from opstools.inventory_forecast.domain import (
     CLOSING_STOCK_REQUIRED_COLUMNS,
     TRANSACTION_NON_NULL_COLUMNS,
     TRANSACTION_REQUIRED_COLUMNS,
+    InventoryForecastError,
 )
-from opstools.inventory_forecast.domain import InventoryForecastError
 
 
 def validate_transaction_dataset(

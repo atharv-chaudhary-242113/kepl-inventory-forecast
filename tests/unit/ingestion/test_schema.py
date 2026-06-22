@@ -14,6 +14,7 @@ from opstools.inventory_forecast.ingestion import schema
 from opstools.inventory_forecast.ingestion.schema import (
     _first_offending,
     _validate,
+    finalize_records,
 )
 
 
@@ -300,3 +301,26 @@ def test_validate_rejects_null_supplier_in_ledger() -> None:
         )
 
     assert "found a record with no supplier" in str(exc_info.value)
+
+
+def test_finalize_records_raises_when_supplier_missing_after_forward_fill() -> None:
+    """Records before the first supplier header should fail validation."""
+    frame = pl.DataFrame(
+        {
+            "date": ["2025-01-01"],
+            "voucher": ["PO-001"],
+            "supplier": [""],
+            "item": ["Widget A"],
+            "qty": ["10"],
+            "unit": ["Nos"],
+            "price": ["100"],
+            "amount": ["1000"],
+        }
+    )
+
+    with pytest.raises(DataValidationError):
+        finalize_records(
+            frame,
+            SourceKind.POV,
+            "pov.xlsx",
+        )

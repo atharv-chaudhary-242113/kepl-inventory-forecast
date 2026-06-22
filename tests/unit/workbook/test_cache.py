@@ -24,9 +24,7 @@ def test_cache_dataset_rejects_reserved_column() -> None:
     with pytest.raises(ValueError, match="reserved"):
         CacheDataset(
             name="test",
-            data=pl.DataFrame(
-                {"__dataset__": [1]}
-            ),
+            data=pl.DataFrame({"__dataset__": [1]}),
         )
 
 
@@ -92,17 +90,13 @@ def test_names_property() -> None:
 def test_build_dashboard_cache_clones_frames() -> None:
     source = pl.DataFrame({"x": [1]})
 
-    cache = build_dashboard_cache(
-        sales=source
-    )
+    cache = build_dashboard_cache(sales=source)
 
     assert cache.contains("sales")
 
 
 def test_to_dataframe_empty_cache() -> None:
-    dataframe = to_dataframe(
-        DashboardCache(datasets=())
-    )
+    dataframe = to_dataframe(DashboardCache(datasets=()))
 
     assert dataframe.columns == ["__dataset__"]
     assert dataframe.is_empty()
@@ -121,11 +115,7 @@ def test_to_dataframe_serializes_multiple_datasets() -> None:
 
 
 def test_from_dataframe_empty_frame() -> None:
-    cache = from_dataframe(
-        pl.DataFrame(
-            schema={"__dataset__": pl.String}
-        )
-    )
+    cache = from_dataframe(pl.DataFrame(schema={"__dataset__": pl.String}))
 
     assert cache.datasets == ()
 
@@ -135,29 +125,18 @@ def test_from_dataframe_requires_dataset_column() -> None:
         ValueError,
         match="missing '__dataset__'",
     ):
-        from_dataframe(
-            pl.DataFrame({"x": [1]})
-        )
+        from_dataframe(pl.DataFrame({"x": [1]}))
 
 
 def test_round_trip_cache_serialization() -> None:
     original = build_dashboard_cache(
-        sales=pl.DataFrame(
-            {"item": ["A"], "qty": [10]}
-        ),
-        spend=pl.DataFrame(
-            {"amount": [100]}
-        ),
+        sales=pl.DataFrame({"item": ["A"], "qty": [10]}),
+        spend=pl.DataFrame({"amount": [100]}),
     )
 
-    reconstructed = from_dataframe(
-        to_dataframe(original)
-    )
+    reconstructed = from_dataframe(to_dataframe(original))
 
     assert reconstructed.names == original.names
 
     for name in original.names:
-        assert (
-            reconstructed.get(name)
-            .equals(original.get(name))
-        )
+        assert reconstructed.get(name).equals(original.get(name))

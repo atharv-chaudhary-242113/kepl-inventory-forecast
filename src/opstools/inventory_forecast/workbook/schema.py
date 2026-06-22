@@ -59,8 +59,6 @@ WORKSHEETS: Final[dict[WorksheetName, WorksheetSchema]] = {
             "schema_version",
             "application_version",
             "generated_at",
-            "source_hash",
-            "output_hash",
             "forecast_horizon",
             "total_suppliers",
             "total_items",

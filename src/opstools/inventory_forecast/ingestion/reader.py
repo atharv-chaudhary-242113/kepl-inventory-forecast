@@ -18,7 +18,7 @@ from pathlib import Path
 import polars as pl
 
 from opstools.inventory_forecast.domain import InvalidSchemaError, SourceKind
-from opstools.inventory_forecast.ingestion import (
+from opstools.inventory_forecast.ingestion.header_detection import (
     SCAN_LIMIT,
     detect_header_row,
 )

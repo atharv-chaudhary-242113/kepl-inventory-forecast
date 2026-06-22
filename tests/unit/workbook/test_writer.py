@@ -25,9 +25,7 @@ def metadata() -> WorkbookMeta:
     return WorkbookMeta(
         schema_version="1.0.0",
         application_version="0.1.0",
-        generated_at=datetime.now(
-            UTC
-        ),
+        generated_at=datetime.now(UTC),
         source_hash="a",
         output_hash="b",
         forecast_horizon=30,
@@ -50,57 +48,39 @@ def build_dataset_mapping() -> dict:
         }:
             continue
 
-        columns = (
-            schema.get_sheet_schema(sheet)
-            .required_columns
-        )
+        columns = schema.get_sheet_schema(sheet).required_columns
 
-        datasets[sheet] = pl.DataFrame(
-            {
-                column: [None]
-                for column in columns
-            }
-        )
+        datasets[sheet] = pl.DataFrame({column: [None] for column in columns})
 
     return datasets
 
 
 def test_validate_dataset_mapping_success() -> None:
-    _validate_dataset_mapping(
-        build_dataset_mapping()
-    )
+    _validate_dataset_mapping(build_dataset_mapping())
 
 
 def test_validate_dataset_mapping_missing_dataset() -> None:
     datasets = build_dataset_mapping()
 
-    datasets.pop(
-        WorksheetName.FORECASTS
-    )
+    datasets.pop(WorksheetName.FORECASTS)
 
     with pytest.raises(
         ValueError,
         match="Missing required datasets",
     ):
-        _validate_dataset_mapping(
-            datasets
-        )
+        _validate_dataset_mapping(datasets)
 
 
 def test_validate_dataset_mapping_unexpected_dataset() -> None:
     datasets = build_dataset_mapping()
 
-    datasets[
-        WorksheetName.METADATA
-    ] = pl.DataFrame()
+    datasets[WorksheetName.METADATA] = pl.DataFrame()
 
     with pytest.raises(
         ValueError,
         match="Unexpected datasets",
     ):
-        _validate_dataset_mapping(
-            datasets
-        )
+        _validate_dataset_mapping(datasets)
 
 
 def test_resolve_dataframe_metadata(
@@ -119,17 +99,13 @@ def test_resolve_dataframe_metadata(
 def test_resolve_dataframe_collects_lazyframe(
     metadata: WorkbookMeta,
 ) -> None:
-    lazy = pl.DataFrame(
-        {"x": [1]}
-    ).lazy()
+    lazy = pl.DataFrame({"x": [1]}).lazy()
 
     result = _resolve_dataframe(
         sheet_name=WorksheetName.FORECASTS,
         meta=metadata,
         cache=DashboardCache(datasets=()),
-        datasets={
-            WorksheetName.FORECASTS: lazy
-        },
+        datasets={WorksheetName.FORECASTS: lazy},
     )
 
     assert isinstance(
@@ -141,15 +117,9 @@ def test_resolve_dataframe_collects_lazyframe(
 def test_metadata_dataframe_removes_timezone(
     metadata: WorkbookMeta,
 ) -> None:
-    dataframe = _metadata_dataframe(
-        metadata
-    )
+    dataframe = _metadata_dataframe(metadata)
 
-    assert (
-        dataframe.schema["generated_at"]
-        .time_zone
-        is None
-    )
+    assert dataframe.schema["generated_at"].time_zone is None
 
 
 def test_write_workbook_creates_xlsx(
@@ -161,9 +131,7 @@ def test_write_workbook_creates_xlsx(
     write_workbook(
         output_path=output,
         meta=metadata,
-        cache=DashboardCache(
-            datasets=()
-        ),
+        cache=DashboardCache(datasets=()),
         datasets=build_dataset_mapping(),
     )
 
@@ -179,9 +147,7 @@ def test_write_workbook_removes_temp_file(
     write_workbook(
         output_path=output,
         meta=metadata,
-        cache=DashboardCache(
-            datasets=()
-        ),
+        cache=DashboardCache(datasets=()),
         datasets=build_dataset_mapping(),
     )
 
@@ -199,33 +165,22 @@ def test_workbook_round_trip(
     write_workbook(
         output_path=output,
         meta=metadata,
-        cache=DashboardCache(
-            datasets=()
-        ),
+        cache=DashboardCache(datasets=()),
         datasets=build_dataset_mapping(),
     )
 
-    loaded = read_metadata(
-        output
-    )
+    loaded = read_metadata(output)
 
-    assert (
-        loaded.schema_version
-        == metadata.schema_version
-    )
+    assert loaded.schema_version == metadata.schema_version
 
 
-@patch(
-    "opstools.inventory_forecast.workbook.writer._resolve_dataframe"
-)
+@patch("opstools.inventory_forecast.workbook.writer._resolve_dataframe")
 def test_write_workbook_cleans_temp_file_on_failure(
     mock_resolve,
     tmp_path,
     metadata,
 ) -> None:
-    mock_resolve.side_effect = RuntimeError(
-        "boom"
-    )
+    mock_resolve.side_effect = RuntimeError("boom")
 
     output = tmp_path / "out.xlsx"
 
@@ -233,38 +188,26 @@ def test_write_workbook_cleans_temp_file_on_failure(
         write_workbook(
             output_path=output,
             meta=metadata,
-            cache=DashboardCache(
-                datasets=()
-            ),
+            cache=DashboardCache(datasets=()),
             datasets=build_dataset_mapping(),
         )
 
-    temp_file = (
-        tmp_path / "out.tmp.xlsx"
-    )
+    temp_file = tmp_path / "out.tmp.xlsx"
 
     assert not temp_file.exists()
 
 
-@patch(
-    "pathlib.Path.unlink"
-)
-@patch(
-    "opstools.inventory_forecast.workbook.writer._resolve_dataframe"
-)
+@patch("pathlib.Path.unlink")
+@patch("opstools.inventory_forecast.workbook.writer._resolve_dataframe")
 def test_write_workbook_ignores_temp_cleanup_failure(
     mock_resolve,
     mock_unlink,
     tmp_path: Path,
     metadata: WorkbookMeta,
 ) -> None:
-    mock_resolve.side_effect = RuntimeError(
-        "boom"
-    )
+    mock_resolve.side_effect = RuntimeError("boom")
 
-    mock_unlink.side_effect = OSError(
-        "cannot delete"
-    )
+    mock_unlink.side_effect = OSError("cannot delete")
 
     output = tmp_path / "out.xlsx"
 
@@ -272,9 +215,6 @@ def test_write_workbook_ignores_temp_cleanup_failure(
         write_workbook(
             output_path=output,
             meta=metadata,
-            cache=DashboardCache(
-                datasets=()
-            ),
+            cache=DashboardCache(datasets=()),
             datasets=build_dataset_mapping(),
         )
-

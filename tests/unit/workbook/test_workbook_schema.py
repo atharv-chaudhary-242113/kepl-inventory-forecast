@@ -27,8 +27,6 @@ def valid_metadata() -> WorkbookMeta:
         schema_version="1.0.0",
         application_version="0.1.0",
         generated_at=datetime.now(UTC),
-        source_hash="source_hash",
-        output_hash="output_hash",
         forecast_horizon=12,
         total_suppliers=10,
         total_items=100,
@@ -74,9 +72,7 @@ def test_validate_workbook_version_rejects_major_version_change(
 
 def test_validate_workbook_version_rejects_invalid_version() -> None:
     with pytest.raises(WorkbookVersionError):
-        validate_workbook_version(
-            "not-a-valid-version"
-        )
+        validate_workbook_version("not-a-valid-version")
 
 
 # ======================================================================================
@@ -167,8 +163,6 @@ def test_validate_sheet_columns_accepts_metadata_sheet() -> None:
             "schema_version",
             "application_version",
             "generated_at",
-            "source_hash",
-            "output_hash",
             "forecast_horizon",
             "total_suppliers",
             "total_items",
@@ -200,8 +194,6 @@ def test_validate_sheet_columns_rejects_unexpected_columns() -> None:
                 "schema_version",
                 "application_version",
                 "generated_at",
-                "source_hash",
-                "output_hash",
                 "forecast_horizon",
                 "total_suppliers",
                 "total_items",
@@ -244,28 +236,19 @@ def test_dashboard_cache_accepts_empty_columns() -> None:
 
 
 def test_required_sheet_names_matches_contract() -> None:
-    assert (
-        required_sheet_names()
-        == WORKBOOK_SHEET_ORDER
-    )
+    assert required_sheet_names() == WORKBOOK_SHEET_ORDER
 
 
 def test_is_known_sheet_returns_true_for_enum() -> None:
-    assert is_known_sheet(
-        WorksheetName.METADATA
-    )
+    assert is_known_sheet(WorksheetName.METADATA)
 
 
 def test_is_known_sheet_returns_false_for_unknown_sheet() -> None:
-    assert not is_known_sheet(
-        "fake_sheet"
-    )
+    assert not is_known_sheet("fake_sheet")
 
 
 def test_is_known_sheet_returns_false_for_sheet_name_string() -> None:
-    assert not is_known_sheet(
-        "Metadata"
-    )
+    assert not is_known_sheet("Metadata")
 
 
 def test_get_sheet_schema_returns_metadata_schema() -> None:
@@ -273,25 +256,17 @@ def test_get_sheet_schema_returns_metadata_schema() -> None:
         WorksheetName.METADATA,
     )
 
-    assert (
-        worksheet_schema.name
-        == WorksheetName.METADATA
-    )
+    assert worksheet_schema.name == WorksheetName.METADATA
 
-    assert (
-        worksheet_schema.required_columns
-        == (
-            "schema_version",
-            "application_version",
-            "generated_at",
-            "source_hash",
-            "output_hash",
-            "forecast_horizon",
-            "total_suppliers",
-            "total_items",
-            "total_records",
-            "processing_time_seconds",
-        )
+    assert worksheet_schema.required_columns == (
+        "schema_version",
+        "application_version",
+        "generated_at",
+        "forecast_horizon",
+        "total_suppliers",
+        "total_items",
+        "total_records",
+        "processing_time_seconds",
     )
 
 

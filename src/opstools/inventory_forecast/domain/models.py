@@ -83,8 +83,6 @@ class WorkbookMeta(BaseModel):
     schema_version: str
     application_version: str
     generated_at: datetime
-    source_hash: str
-    output_hash: str
     forecast_horizon: int = Field(gt=0)
     total_suppliers: int = Field(ge=0)
     total_items: int = Field(ge=0)
