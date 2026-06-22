@@ -5,7 +5,7 @@ from decimal import Decimal
 
 import polars as pl
 
-from opstools.inventory_forecast.domain.enums import InventoryStatus
+from opstools.inventory_forecast.domain import InventoryStatus
 from opstools.inventory_forecast.engine import (
     build_inventory_health,
     build_inventory_valuation,

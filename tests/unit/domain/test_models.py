@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError  # Pydantic's, not our domain ValidationError
 
-from opstools.inventory_forecast.domain.enums import (
+from opstools.inventory_forecast.domain import (
     ForecastModel,
     ForecastStatus,
     InventoryStatus,
@@ -15,7 +15,7 @@ from opstools.inventory_forecast.domain.enums import (
     SourceKind,
     SupplierDependencyLevel,
 )
-from opstools.inventory_forecast.domain.models import (
+from opstools.inventory_forecast.domain import (
     DemandCharacteristics,
     DemandObservation,
     ForecastMetrics,

@@ -12,7 +12,7 @@ count). Pure over Polars LazyFrames.
 
 import polars as pl
 
-from opstools.inventory_forecast.config.settings import Settings
+from opstools.inventory_forecast.config import Settings
 
 # DOMAIN_RULES.md threshold: a pair is only surfaced at >= 3 co-occurrence events.
 _MIN_FREQUENCY: int = 3

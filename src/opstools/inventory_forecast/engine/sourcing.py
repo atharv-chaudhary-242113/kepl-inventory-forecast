@@ -10,7 +10,7 @@ Decimal-exact. Pure over Polars LazyFrames.
 
 import polars as pl
 
-from opstools.inventory_forecast.domain.enums import RiskLevel, SupplierDependencyLevel
+from opstools.inventory_forecast.domain import RiskLevel, SupplierDependencyLevel
 
 # Decimal money scale (ingestion/schema.py MONEY_SCALE).
 _MONEY: pl.datatypes.DataTypeClass | pl.Decimal = pl.Decimal(scale=4)

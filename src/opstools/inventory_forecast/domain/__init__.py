@@ -28,6 +28,7 @@ from opstools.inventory_forecast.domain.enums import (
     SourceKind,
     SupplierDependencyLevel,
     TrendDirection,
+    WorksheetName,
 )
 from opstools.inventory_forecast.domain.errors import (
     BacktestingError,
@@ -50,8 +51,10 @@ from opstools.inventory_forecast.domain.errors import (
     SourcingRiskError,
     SupplierAnalyticsError,
     WorkbookError,
+    WorkbookVersionError,
     WorksheetGenerationError,
     WorksheetMetaDataError,
+    WorksheetSchemaError,
 )
 from opstools.inventory_forecast.domain.models import (
     AnalyticsSummary,
@@ -124,8 +127,11 @@ __all__ = (
     "TrendDirection",
     "WorkbookError",
     "WorkbookMeta",
+    "WorkbookVersionError",
     "WorksheetGenerationError",
     "WorksheetMetaDataError",
+    "WorksheetName",
+    "WorksheetSchemaError",
     "validate_closing_stock",
     "validate_transaction_dataset",
 )

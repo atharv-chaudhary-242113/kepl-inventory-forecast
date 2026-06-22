@@ -10,7 +10,7 @@ currency accumulation is prohibited (PROJECT_CONSTITUTION.md; THREAT_MODEL.md
 
 import polars as pl
 
-from opstools.inventory_forecast.config.settings import Settings
+from opstools.inventory_forecast.config import Settings
 
 # Decimal scale matching the ingestion money contract (ingestion/schema.py
 # MONEY_SCALE). Used to cast the Float64 quantity into Decimal space so that

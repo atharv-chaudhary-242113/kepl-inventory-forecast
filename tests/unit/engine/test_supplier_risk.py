@@ -5,7 +5,7 @@ from decimal import Decimal
 
 import polars as pl
 
-from opstools.inventory_forecast.config.settings import Settings
+from opstools.inventory_forecast.config import Settings
 from opstools.inventory_forecast.engine import (
     build_financial_summary,
     build_pending_deliveries,

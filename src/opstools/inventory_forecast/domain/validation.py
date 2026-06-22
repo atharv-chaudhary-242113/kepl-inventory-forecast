@@ -13,13 +13,13 @@ from collections.abc import Sequence
 
 import polars as pl
 
-from opstools.inventory_forecast.domain.contracts import (
+from opstools.inventory_forecast.domain import (
     CLOSING_STOCK_NON_NULL_COLUMNS,
     CLOSING_STOCK_REQUIRED_COLUMNS,
     TRANSACTION_NON_NULL_COLUMNS,
     TRANSACTION_REQUIRED_COLUMNS,
 )
-from opstools.inventory_forecast.domain.errors import InventoryForecastError
+from opstools.inventory_forecast.domain import InventoryForecastError
 
 
 def validate_transaction_dataset(

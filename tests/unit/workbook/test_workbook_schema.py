@@ -4,12 +4,12 @@ from datetime import UTC, datetime
 
 import pytest
 
-from opstools.inventory_forecast.domain.enums import WorksheetName
-from opstools.inventory_forecast.domain.errors import (
+from opstools.inventory_forecast.domain import (
+    WorkbookMeta,
     WorkbookVersionError,
+    WorksheetName,
     WorksheetSchemaError,
 )
-from opstools.inventory_forecast.domain.models import WorkbookMeta
 from opstools.inventory_forecast.workbook.schema import (
     WORKBOOK_SHEET_ORDER,
     get_sheet_schema,

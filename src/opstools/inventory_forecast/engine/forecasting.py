@@ -41,8 +41,8 @@ from statsforecast.models import (
     SimpleExponentialSmoothingOptimized,
 )
 
-from opstools.inventory_forecast.config.settings import Settings
-from opstools.inventory_forecast.domain.enums import ForecastModel, SbcClass
+from opstools.inventory_forecast.config import Settings
+from opstools.inventory_forecast.domain import ForecastModel, SbcClass
 
 # --- Constants ------------------------------------------------------------
 

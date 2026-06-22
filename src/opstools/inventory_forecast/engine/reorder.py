@@ -14,7 +14,7 @@ Polars LazyFrames.
 
 import polars as pl
 
-from opstools.inventory_forecast.config.settings import Settings
+from opstools.inventory_forecast.config import Settings
 
 # Average month length used to convert lead-time *days* into the *months* the
 # demand series is expressed in. A fixed 30 keeps the conversion deterministic

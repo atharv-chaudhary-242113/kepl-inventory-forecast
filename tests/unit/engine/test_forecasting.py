@@ -14,7 +14,7 @@ from decimal import Decimal
 import polars as pl
 import pytest
 
-from opstools.inventory_forecast.config.settings import Settings
+from opstools.inventory_forecast.config import Settings
 from opstools.inventory_forecast.engine.forecasting import _as_polars, forecast_demand
 
 # Labels each SBC class is allowed to be served by (class candidates + baselines),

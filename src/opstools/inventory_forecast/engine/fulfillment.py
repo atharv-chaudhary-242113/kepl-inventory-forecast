@@ -8,7 +8,7 @@ fulfillment status uses the FulfillmentStatus enum. Pure over Polars LazyFrames.
 
 import polars as pl
 
-from opstools.inventory_forecast.domain.enums import FulfillmentStatus
+from opstools.inventory_forecast.domain import FulfillmentStatus
 
 
 def build_fill_rate(lead_time: pl.LazyFrame) -> pl.LazyFrame:

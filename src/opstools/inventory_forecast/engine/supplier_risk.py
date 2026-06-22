@@ -11,7 +11,7 @@ are bounded to [0, 1]. Pure over Polars LazyFrames.
 
 import polars as pl
 
-from opstools.inventory_forecast.config.settings import Settings
+from opstools.inventory_forecast.config import Settings
 
 # Decimal money scale (ingestion/schema.py MONEY_SCALE). total_spend stays Decimal.
 _MONEY: pl.datatypes.DataTypeClass | pl.Decimal = pl.Decimal(scale=4)

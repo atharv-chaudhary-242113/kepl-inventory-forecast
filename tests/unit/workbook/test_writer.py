@@ -7,8 +7,7 @@ from unittest.mock import patch
 import polars as pl
 import pytest
 
-from opstools.inventory_forecast.domain.enums import WorksheetName
-from opstools.inventory_forecast.domain.models import WorkbookMeta
+from opstools.inventory_forecast.domain import WorkbookMeta, WorksheetName
 from opstools.inventory_forecast.workbook.cache import (
     DashboardCache,
 )

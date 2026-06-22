@@ -1,6 +1,6 @@
 """Unit tests for semantic header-row detection."""
 
-from opstools.inventory_forecast.ingestion.header_detection import (
+from opstools.inventory_forecast.ingestion import (
     detect_header_row,
     normalize_token,
 )

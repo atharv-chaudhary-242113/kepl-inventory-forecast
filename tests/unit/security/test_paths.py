@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from opstools.inventory_forecast.domain.errors import DataValidationError, SecurityError
+from opstools.inventory_forecast.domain import DataValidationError, SecurityError
 from opstools.inventory_forecast.security import paths
 
 

@@ -3,10 +3,10 @@
 import polars as pl
 import pytest
 
-from opstools.inventory_forecast.domain.enums import SourceKind
-from opstools.inventory_forecast.domain.errors import (
+from opstools.inventory_forecast.domain import (
     DataValidationError,
     MissingColumnError,
+    SourceKind,
 )
 from opstools.inventory_forecast.ingestion import schema
 

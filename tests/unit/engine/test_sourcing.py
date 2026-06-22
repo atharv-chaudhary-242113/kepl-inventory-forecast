@@ -5,7 +5,7 @@ from decimal import Decimal
 
 import polars as pl
 
-from opstools.inventory_forecast.domain.enums import RiskLevel, SupplierDependencyLevel
+from opstools.inventory_forecast.domain import RiskLevel, SupplierDependencyLevel
 from opstools.inventory_forecast.engine import build_sourcing_risk
 
 _OUTPUT_COLUMNS = [

@@ -1,6 +1,6 @@
 """Unit tests for domain enums."""
 
-from opstools.inventory_forecast.domain.enums import (
+from opstools.inventory_forecast.domain import (
     AbcClass,
     ForecastGranularity,
     ForecastModel,

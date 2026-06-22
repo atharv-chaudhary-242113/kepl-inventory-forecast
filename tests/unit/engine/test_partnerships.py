@@ -2,7 +2,7 @@
 
 from datetime import date
 
-from opstools.inventory_forecast.config.settings import Settings
+from opstools.inventory_forecast.config import Settings
 from opstools.inventory_forecast.engine import detect_partnerships
 
 _OUTPUT_COLUMNS = [

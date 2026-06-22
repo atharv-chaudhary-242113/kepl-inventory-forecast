@@ -5,8 +5,8 @@ from decimal import Decimal
 import pytest
 from pydantic import ValidationError
 
-from opstools.inventory_forecast.config.settings import Settings
-from opstools.inventory_forecast.domain.enums import ForecastGranularity
+from opstools.inventory_forecast.config import Settings
+from opstools.inventory_forecast.domain import ForecastGranularity
 
 
 def test_defaults_match_documented_values():

@@ -12,7 +12,7 @@ from typing import Self
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from opstools.inventory_forecast.domain.enums import ForecastGranularity
+from opstools.inventory_forecast.domain import ForecastGranularity
 
 
 class Settings(BaseModel):

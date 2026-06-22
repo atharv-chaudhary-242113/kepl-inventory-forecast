@@ -2,7 +2,7 @@
 
 from datetime import date
 
-from opstools.inventory_forecast.domain.enums import FulfillmentStatus
+from opstools.inventory_forecast.domain import FulfillmentStatus
 from opstools.inventory_forecast.engine import build_fill_rate, compute_lead_time
 
 _OUTPUT_COLUMNS = [

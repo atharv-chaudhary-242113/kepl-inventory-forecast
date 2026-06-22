@@ -18,8 +18,7 @@ from pathlib import Path
 import polars as pl
 import xlsxwriter
 
-from opstools.inventory_forecast.domain.enums import WorksheetName
-from opstools.inventory_forecast.domain.models import WorkbookMeta
+from opstools.inventory_forecast.domain import WorkbookMeta, WorksheetName
 from opstools.inventory_forecast.workbook import schema
 from opstools.inventory_forecast.workbook.cache import (
     DashboardCache,

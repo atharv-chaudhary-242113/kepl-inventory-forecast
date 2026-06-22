@@ -4,7 +4,7 @@ from datetime import date
 
 import polars as pl
 
-from opstools.inventory_forecast.config.settings import Settings
+from opstools.inventory_forecast.config import Settings
 from opstools.inventory_forecast.engine import EngineOutput, run_engine
 
 _SNAP = date(2025, 6, 30)

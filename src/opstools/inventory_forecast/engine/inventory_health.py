@@ -10,7 +10,7 @@ Pure over Polars LazyFrames.
 
 import polars as pl
 
-from opstools.inventory_forecast.domain.enums import InventoryStatus
+from opstools.inventory_forecast.domain import InventoryStatus
 
 # Decimal money scale (ingestion/schema.py MONEY_SCALE).
 _MONEY: pl.datatypes.DataTypeClass | pl.Decimal = pl.Decimal(scale=4)

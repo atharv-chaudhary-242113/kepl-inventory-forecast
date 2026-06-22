@@ -2,7 +2,7 @@
 
 import pytest
 
-from opstools.inventory_forecast.domain.errors import (
+from opstools.inventory_forecast.domain import (
     DataValidationError,
     ForecastingError,
     InvalidSchemaError,

@@ -9,7 +9,7 @@ an allowlist over a blocklist.
 
 from pathlib import Path
 
-from opstools.inventory_forecast.domain.errors import DataValidationError, SecurityError
+from opstools.inventory_forecast.domain import DataValidationError, SecurityError
 
 # 50 MB ceiling on any single source file. A workbook far larger than a real ERP
 # export is the cheapest signal of a ZIP/decompression bomb or a memory-exhaustion

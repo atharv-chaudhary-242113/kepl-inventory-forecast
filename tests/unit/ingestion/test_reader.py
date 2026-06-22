@@ -6,14 +6,17 @@ from pathlib import Path
 import polars as pl
 import pytest
 
-from opstools.inventory_forecast.domain.enums import SourceKind
-from opstools.inventory_forecast.domain.errors import (
+from opstools.inventory_forecast.domain import (
     DataValidationError,
     InvalidSchemaError,
     MissingColumnError,
     SecurityError,
+    SourceKind,
 )
-from opstools.inventory_forecast.ingestion.reader import _extract_table, read_source
+from opstools.inventory_forecast.ingestion import read_source
+
+# noinspection PyProtectedMember
+from opstools.inventory_forecast.ingestion.reader import _extract_table
 
 LEDGER_HEADER = [
     "Date",

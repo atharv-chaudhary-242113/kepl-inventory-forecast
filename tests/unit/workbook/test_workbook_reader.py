@@ -8,12 +8,14 @@ import polars as pl
 import pytest
 from pytz import UTC
 
-from opstools.inventory_forecast.domain.enums import WorksheetName
-from opstools.inventory_forecast.domain.errors import (
+from opstools.inventory_forecast.domain import (
     WorkbookError,
     WorksheetMetaDataError,
+    WorksheetName,
     WorksheetSchemaError,
 )
+
+# noinspection PyProtectedMember
 from opstools.inventory_forecast.workbook.reader import (
     _validate_workbook_completeness,
     _validate_workbook_path,
@@ -213,8 +215,6 @@ def test_validate_workbook_completeness_wraps_open_failure(
     "opstools.inventory_forecast.workbook.reader._validate_workbook_path"
 )
 def test_load_dashboard_state(
-    mock_validate_path,
-    mock_validate_complete,
     mock_read_metadata,
     mock_read_cache,
 ) -> None:

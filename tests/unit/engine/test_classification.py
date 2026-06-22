@@ -5,8 +5,8 @@ from decimal import Decimal
 
 import polars as pl
 
-from opstools.inventory_forecast.config.settings import Settings
-from opstools.inventory_forecast.domain.enums import AbcClass, SbcClass
+from opstools.inventory_forecast.config import Settings
+from opstools.inventory_forecast.domain import AbcClass, SbcClass
 from opstools.inventory_forecast.engine import build_abc_classification, classify_sbc
 
 

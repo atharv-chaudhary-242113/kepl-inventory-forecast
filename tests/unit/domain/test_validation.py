@@ -3,13 +3,13 @@
 import polars as pl
 import pytest
 
-from opstools.inventory_forecast.domain import validate_transaction_dataset
-from opstools.inventory_forecast.domain.contracts import (
+from opstools.inventory_forecast.domain import (
     CLOSING_STOCK_NON_NULL_COLUMNS,
     CLOSING_STOCK_REQUIRED_COLUMNS,
     TRANSACTION_REQUIRED_COLUMNS,
+    InventoryForecastError,
+    validate_transaction_dataset,
 )
-from opstools.inventory_forecast.domain.errors import InventoryForecastError
 
 # noinspection PyProtectedMember
 from opstools.inventory_forecast.domain.validation import (
