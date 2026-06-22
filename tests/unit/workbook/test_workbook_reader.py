@@ -17,7 +17,7 @@ from opstools.inventory_forecast.domain import (
 
 # noinspection PyProtectedMember
 from opstools.inventory_forecast.workbook.reader import (
-    _validate_workbook_completeness,
+    validate_workbook_completeness,
     _validate_workbook_path,
     load_dashboard_state,
     read_cache,
@@ -121,7 +121,7 @@ def test_validate_workbook_completeness_detects_missing_sheet(
         WorkbookError,
         match="missing required worksheets",
     ):
-        _validate_workbook_completeness(
+        validate_workbook_completeness(
             tmp_path / "file.xlsx"
         )
 
@@ -197,7 +197,7 @@ def test_validate_workbook_completeness_wraps_open_failure(
         WorkbookError,
         match="Failed to inspect workbook",
     ):
-        _validate_workbook_completeness(
+        validate_workbook_completeness(
             tmp_path / "bad.xlsx"
         )
 
@@ -309,7 +309,7 @@ def test_validate_workbook_completeness_success(
 
     mock_calamine.from_path.return_value = workbook
 
-    _validate_workbook_completeness(
+    validate_workbook_completeness(
         tmp_path / "test.xlsx"
     )
 
@@ -334,7 +334,7 @@ def test_validate_workbook_completeness_logs_success(
 
     mock_calamine.from_path.return_value = workbook
 
-    _validate_workbook_completeness(
+    validate_workbook_completeness(
         tmp_path / "test.xlsx"
     )
 

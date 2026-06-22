@@ -49,7 +49,7 @@ def load_dashboard_state(
     )
 
     _validate_workbook_path(path)
-    _validate_workbook_completeness(path)
+    validate_workbook_completeness(path)
 
     metadata = read_metadata(path)
     cache = read_cache(path)
@@ -199,7 +199,7 @@ def _validate_workbook_path(
         )
 
 
-def _validate_workbook_completeness(
+def validate_workbook_completeness(
     path: Path,
 ) -> None:
     """Validate that all required worksheets are physically
