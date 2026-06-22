@@ -119,6 +119,7 @@ temp/
 exports/
 generated/
 artifacts/
+validation/
 
 # Generated workbooks
 *.xlsx
@@ -175,7 +176,6 @@ recent_files.json
 # ============================================
 
 data/
-*.txt
 
 # Sample public datasets can be stored under:
 # data/sample/
