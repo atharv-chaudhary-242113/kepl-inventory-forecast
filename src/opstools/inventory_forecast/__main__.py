@@ -1,21 +1,44 @@
-"""Console entry point for the application.
+"""Package entry point.
 
-Wired to the `inventory-forecast` script in pyproject.toml and runnable as
-`python -m opstools.inventory_forecast`. In Phase 0 the engine and UI are not
-yet built, so `main` reports the version and exits cleanly — exactly what the
-Phase 0 gate checks (ROADMAP.md). The PySide6 bootstrap arrives in Phase 6.
+Allows execution via:
+
+    python -m opstools.inventory_forecast
+
+This module intentionally contains no business logic.
 """
 
-from opstools.inventory_forecast import __version__
+from __future__ import annotations
+
+from pathlib import Path
+
+from opstools.inventory_forecast.config import Settings
+from opstools.inventory_forecast.services.pipeline_service import (
+    PipelineService,
+)
+from opstools.inventory_forecast.services.state import (
+    PipelineRequest,
+)
 
 
 def main() -> int:
-    """Start the application and return a process exit code (0 == success)."""
-    print(f"KEPL Inventory Forecast {__version__}")
-    print("Scaffold build: engine and UI are not yet wired. Exiting cleanly.")
+    """Execute a pipeline run from the command line.
+
+    This entry point is intentionally minimal and exists
+    primarily for local execution and smoke testing.
+    """
+    print(
+        "KEPL Inventory Forecast"
+    )
+
+    print(
+        "Use the dedicated UI or service layer "
+        "for production execution."
+    )
+
     return 0
 
 
 if __name__ == "__main__":
-    # SystemExit carries the int code to the shell; `python -m ...` exits 0.
-    raise SystemExit(main())
+    raise SystemExit(
+        main()
+    )
