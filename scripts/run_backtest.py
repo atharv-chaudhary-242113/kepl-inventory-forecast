@@ -43,7 +43,6 @@ def forecast_adapter(
     settings: Settings,
 ) -> pl.DataFrame:
     """Adapt engine forecasting API to validation API."""
-
     demand_lf = demand.lazy()
 
     sbc_lf = classify_sbc(
@@ -64,7 +63,6 @@ def _load_demand_history(
     pov_path: Path,
 ) -> pl.DataFrame:
     """Load and reconstruct demand history."""
-
     pov = read_source(
         pov_path,
         SourceKind.POV,
@@ -83,7 +81,6 @@ def _run_holdout(
     output_path: Path,
 ) -> int:
     """Execute temporal holdout validation."""
-
     train_demand = demand.filter(
         pl.col("period") < cutoff,
     )
@@ -128,7 +125,6 @@ def _run_rolling(
     output_path: Path,
 ) -> int:
     """Execute rolling-origin validation."""
-
     result = run_rolling_origin(
         demand=demand,
         forecast_callback=forecast_adapter,
@@ -150,7 +146,6 @@ def _run_rolling(
 
 def main() -> int:
     """Execute forecast validation."""
-
     parser = argparse.ArgumentParser(description="Inventory forecast validation.")
 
     parser.add_argument(

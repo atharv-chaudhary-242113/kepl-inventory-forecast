@@ -73,6 +73,9 @@ class SbcClass(StrEnum):
             Infrequent demand, high variability.
     """
 
+    NEW_ITEM = "new_item"
+    SPARSE = "sparse"
+
     SMOOTH = "smooth"
     ERRATIC = "erratic"
     INTERMITTENT = "intermittent"
@@ -221,4 +224,8 @@ class WorksheetName(StrEnum):
     ABC_CLASSIFICATION = "ABC_Classification"
     SBC_CLASSIFICATION = "SBC_Classification"
     INVENTORY_VALUATION = "Inventory_Valuation"
+
+    PORTFOLIO_ANALYSIS = "Portfolio_Analysis"
+    SUPPLIER_SUMMARY = "Supplier_Summary"
+    FORECAST_READINESS = "Forecast_Readiness"
     DASHBOARD_CACHE = "Dashboard_Cache"

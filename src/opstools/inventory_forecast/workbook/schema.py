@@ -40,6 +40,9 @@ WORKBOOK_SHEET_ORDER: Final[tuple[WorksheetName, ...]] = (
     WorksheetName.ABC_CLASSIFICATION,
     WorksheetName.SBC_CLASSIFICATION,
     WorksheetName.INVENTORY_VALUATION,
+    WorksheetName.PORTFOLIO_ANALYSIS,
+    WorksheetName.SUPPLIER_SUMMARY,
+    WorksheetName.FORECAST_READINESS,
     WorksheetName.DASHBOARD_CACHE,
 )
 
@@ -179,6 +182,40 @@ WORKSHEETS: Final[dict[WorksheetName, WorksheetSchema]] = {
             "unit_cost",
             "inventory_value",
             "snapshot_date",
+        ),
+    ),
+    WorksheetName.PORTFOLIO_ANALYSIS: WorksheetSchema(
+        name=WorksheetName.PORTFOLIO_ANALYSIS,
+        required_columns=(
+            "supplier",
+            "item",
+            "observation_count",
+            "total_quantity",
+            "total_value",
+            "first_purchase",
+            "last_purchase",
+        ),
+    ),
+    WorksheetName.SUPPLIER_SUMMARY: WorksheetSchema(
+        name=WorksheetName.SUPPLIER_SUMMARY,
+        required_columns=(
+            "supplier",
+            "sku_count",
+            "total_quantity",
+            "total_spend",
+        ),
+    ),
+    WorksheetName.FORECAST_READINESS: WorksheetSchema(
+        name=WorksheetName.FORECAST_READINESS,
+        required_columns=(
+            "supplier",
+            "item",
+            "observation_count",
+            "total_quantity",
+            "total_value",
+            "first_purchase",
+            "last_purchase",
+            "forecast_readiness",
         ),
     ),
     WorksheetName.DASHBOARD_CACHE: WorksheetSchema(

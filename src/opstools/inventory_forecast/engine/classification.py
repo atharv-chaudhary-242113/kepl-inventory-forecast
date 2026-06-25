@@ -23,6 +23,9 @@ from opstools.inventory_forecast.domain import AbcClass, SbcClass
 ADI_THRESHOLD: float = 1.32
 CV2_THRESHOLD: float = 0.49
 
+MIN_HISTORY_FOR_SBC: int = 6
+MIN_HISTORY_FOR_FORECAST: int = 2
+
 # SBC demand is classified over the *monthly* grid that Demand_History uses.
 _MONTHLY: str = "1mo"
 
@@ -103,6 +106,11 @@ def classify_sbc(demand: pl.LazyFrame) -> pl.LazyFrame:
         # ADI = total observed months / months with non-zero demand.
         pl.len().cast(pl.Float64).alias("_total_periods"),
         (pl.col("demand_quantity") > 0).sum().cast(pl.Float64).alias("_active_periods"),
+        pl.col("demand_quantity")
+        .filter(pl.col("demand_quantity") > 0)
+        .len()
+        .cast(pl.Int64)
+        .alias("_observation_count"),
         # CV2 is taken over the *non-zero* demands only (it measures size
         # variability, independent of how often demand occurs).
         pl.col("demand_quantity")
@@ -125,7 +133,7 @@ def classify_sbc(demand: pl.LazyFrame) -> pl.LazyFrame:
             .fill_null(0.0)
             .alias("cv_squared"),
         )
-        .with_columns(_sbc_class_expr())
+        .with_columns(_demand_class_expr())
         .select(["supplier", "item", "adi", "cv_squared", "demand_class"])
     )
 
@@ -157,12 +165,18 @@ def _densify_to_monthly_grid(demand: pl.LazyFrame) -> pl.LazyFrame:
     ).with_columns(pl.col("demand_quantity").fill_null(0.0))
 
 
-def _sbc_class_expr() -> pl.Expr:
-    """Build the ADI x CV2 quadrant expression (DOMAIN_RULES.md thresholds)."""
+def _demand_class_expr() -> pl.Expr:
+    """Demand classification with history gating."""
+    observations = pl.col("_observation_count")
     adi = pl.col("adi")
     cv2 = pl.col("cv_squared")
+
     return (
-        pl.when((adi < ADI_THRESHOLD) & (cv2 < CV2_THRESHOLD))
+        pl.when(observations < MIN_HISTORY_FOR_FORECAST)
+        .then(pl.lit(SbcClass.NEW_ITEM.value))
+        .when(observations < MIN_HISTORY_FOR_SBC)
+        .then(pl.lit(SbcClass.SPARSE.value))
+        .when((adi < ADI_THRESHOLD) & (cv2 < CV2_THRESHOLD))
         .then(pl.lit(SbcClass.SMOOTH.value))
         .when((adi < ADI_THRESHOLD) & (cv2 >= CV2_THRESHOLD))
         .then(pl.lit(SbcClass.ERRATIC.value))

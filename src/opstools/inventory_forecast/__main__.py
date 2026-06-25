@@ -26,19 +26,12 @@ def main() -> int:
     This entry point is intentionally minimal and exists
     primarily for local execution and smoke testing.
     """
-    print(
-        "KEPL Inventory Forecast"
-    )
+    print("KEPL Inventory Forecast")
 
-    print(
-        "Use the dedicated UI or service layer "
-        "for production execution."
-    )
+    print("Use the dedicated UI or service layer for production execution.")
 
     return 0
 
 
 if __name__ == "__main__":
-    raise SystemExit(
-        main()
-    )
+    raise SystemExit(main())
