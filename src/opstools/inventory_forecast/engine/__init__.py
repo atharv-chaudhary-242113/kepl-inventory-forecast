@@ -10,7 +10,7 @@ from opstools.inventory_forecast.engine.inventory_health import build_inventory_
 from opstools.inventory_forecast.engine.lead_time import compute_lead_time
 
 # pyrefly: ignore [missing-module-attribute]
-from opstools.inventory_forecast.engine.orchestrator import EngineOutput, run_engine
+from opstools.inventory_forecast.engine.orchestrator import run_analytics_engine
 from opstools.inventory_forecast.engine.partnerships import detect_partnerships
 from opstools.inventory_forecast.engine.pending import build_pending_deliveries
 from opstools.inventory_forecast.engine.price_variance import build_price_variance
@@ -20,7 +20,6 @@ from opstools.inventory_forecast.engine.supplier_risk import build_supplier_anal
 from opstools.inventory_forecast.engine.valuation import build_inventory_valuation
 
 __all__ = [
-    "EngineOutput",
     "build_abc_classification",
     "build_fill_rate",
     "build_financial_summary",
@@ -36,5 +35,5 @@ __all__ = [
     "detect_partnerships",
     "forecast_demand",
     "reconstruct_demand",
-    "run_engine",
+    "run_analytics_engine",
 ]

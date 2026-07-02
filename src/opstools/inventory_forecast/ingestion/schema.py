@@ -20,7 +20,6 @@ from collections.abc import Mapping
 import polars as pl
 
 from opstools.inventory_forecast.domain import (
-    DataValidationError,
     MissingColumnError,
     SourceKind,
 )
@@ -156,45 +155,26 @@ def finalize_records(
     canonical: pl.DataFrame,
     kind: SourceKind,
     source_label: str,
-) -> pl.DataFrame:
-    """Apply canonicalization, cast to the typed schema, and validate.
-
-    Input is an all-string frame with canonical column names. Sequence follows
-    INPUT_SCHEMA.md "Canonicalization Order": blank-normalize -> drop separator
-    rows -> forward-fill + normalize supplier (ledgers only) -> cast -> validate.
-
-    Output frame schema:
-        ledger: [date(Date), voucher(Utf8), supplier(Utf8), item(Utf8),
-                 qty(Float64), unit(Utf8), price(Decimal), amount(Decimal)]
-        closing stock: [item(Utf8), qty(Float64), price(Decimal), amount(Decimal)]
-
-    Raises:
-        DataValidationError: an empty item/supplier, an unparseable or negative
-            numeric, or an unparseable (non-blank) date.
-    """
+) -> tuple[pl.DataFrame, pl.DataFrame]:
+    """Apply canonicalization, cast to the typed schema, and extract exceptions."""
     ledger = is_ledger(kind)
     columns = canonical_columns(kind)
 
-    # 1. Trim every text cell and turn blanks into true nulls so that emptiness is
-    #    a single is_null check and forward-fill sees real gaps.
+    # 1. Trim every text cell and turn blanks into true nulls
     lf = canonical.lazy().with_columns(blank_to_null_expr(c) for c in columns)
 
-    # 2. Remove separator rows. INPUT_SCHEMA.md: a row is a formatting separator
-    #    only when BOTH grouping fields are empty (ledger) — for closing stock
-    #    there is no supplier, so an empty item alone marks the separator.
+    # 2. Remove separator rows
     if ledger:
         lf = lf.filter(~(pl.col("supplier").is_null() & pl.col("item").is_null()))
     else:
         lf = lf.filter(pl.col("item").is_not_null())
 
-    # 3. Forward-fill the hierarchical supplier, then strip its branch suffix.
+    # 3. Forward-fill the hierarchical supplier
     if ledger:
         lf = lf.with_columns(forward_fill_supplier_expr())
         lf = lf.with_columns(normalize_supplier_expr())
 
-    # 4. Cast into typed temporaries (suffixed) so validation can compare the
-    #    typed result against the original string to tell "blank" from
-    #    "unparseable" (strict=False => a bad value casts to null, not an error).
+    # 4. Cast into typed temporaries for validation comparison
     typed_exprs: list[pl.Expr] = [
         pl.col("qty").cast(pl.Float64, strict=False).alias("__qty"),
         pl.col("price")
@@ -208,10 +188,10 @@ def finalize_records(
         typed_exprs.append(_parse_date_expr("date").alias("__date"))
     df = lf.with_columns(typed_exprs).collect()
 
-    _validate(df, ledger, source_label)
+    # Segregate clean data from bad data
+    valid_df, exceptions_df = _validate(df, ledger, source_label)
 
-    # 5. Emit the final typed frame in canonical order, swapping the string
-    #    qty/price/amount/date for their validated typed versions.
+    # 5. Emit the final typed frame from the clean data
     final_exprs: list[pl.Expr] = []
     for name in columns:
         if name == "qty":
@@ -224,58 +204,104 @@ def finalize_records(
             final_exprs.append(pl.col("__date").alias("date"))
         else:
             final_exprs.append(pl.col(name))
-    return df.select(final_exprs)
+
+    return valid_df.select(final_exprs), exceptions_df
 
 
-def _validate(df: pl.DataFrame, ledger: bool, source_label: str) -> None:
-    """Raise DataValidationError on the first record-level constraint breach."""
-    # Empty item — never valid (INPUT_SCHEMA.md "Validation Rules").
-    if df.filter(pl.col("item").is_null()).height > 0:
-        msg = f"{source_label}: found a record with an empty 'Item Details'"
-        raise DataValidationError(msg)
+def _validate(
+    df: pl.DataFrame, ledger: bool, source_label: str
+) -> tuple[pl.DataFrame, pl.DataFrame]:
+    """Filter out invalid records into an exceptions DataFrame instead of crashing."""
+    exceptions = []
 
-    # Empty supplier after forward-fill — means rows preceded any supplier header.
-    if ledger and df.filter(pl.col("supplier").is_null()).height > 0:
-        msg = (
-            f"{source_label}: found a record with no supplier; the first data "
-            "rows appear before any 'Particulars' value to inherit"
+    # Assign temporary row numbers to track failing rows precisely
+    df = df.with_row_index("__row_number")
+    bad_indices = set()
+
+    def add_exceptions(
+        mask: pl.Expr, reason_template: str, col_name: str, display_name: str
+    ) -> None:
+        bad_rows = df.filter(mask)
+        for row in bad_rows.iter_rows(named=True):
+            idx = row["__row_number"]
+            if idx not in bad_indices:
+                bad_indices.add(idx)
+                # Strip internal temporaries for a clean JSON-like record dump
+                clean_row = {k: v for k, v in row.items() if not k.startswith("__")}
+                exceptions.append(
+                    {
+                        "File Name": source_label,
+                        "Row Number": idx + 2,  # +2 accounts for 0-index and header row
+                        "Reason": reason_template.format(col=display_name),
+                        "Offending Value": str(row.get(col_name, "")),
+                        "Full Record": str(clean_row),
+                    }
+                )
+
+    # Rule: Empty item
+    add_exceptions(pl.col("item").is_null(), "Empty '{col}'", "item", "Item Details")
+
+    # Rule: Empty supplier
+    if ledger:
+        add_exceptions(
+            pl.col("supplier").is_null(),
+            "Empty '{col}' (No supplier to inherit)",
+            "supplier",
+            "Particulars",
         )
-        raise DataValidationError(msg)
 
-    # Numeric columns: unparseable (non-blank but cast to null), then negative.
+    # Rule: Numeric parsing and negative amounts
     for canonical_name, typed_name in (
         ("Qty.", "__qty"),
         ("Price", "__price"),
         ("Amount", "__amount"),
     ):
-        source_col = {
-            "__qty": "qty",
-            "__price": "price",
-            "__amount": "amount",
-        }[typed_name]
-        unparseable = pl.col(typed_name).is_null() & pl.col(source_col).is_not_null()
-        if df.filter(unparseable).height > 0:
-            example = _first_offending(df, unparseable, source_col)
-            msg = (
-                f"{source_label}: non-numeric value '{example}' "
-                f"in column '{canonical_name}'"
-            )
-            raise DataValidationError(msg)
+        source_col = {"__qty": "qty", "__price": "price", "__amount": "amount"}[
+            typed_name
+        ]
 
-        negative = pl.col(typed_name) < 0
-        if df.filter(negative).height > 0:
-            example = _first_offending(df, negative, typed_name)
-            msg = (
-                f"{source_label}: negative value '{example}' "
-                f"in column '{canonical_name}'"
-            )
-            raise DataValidationError(msg)
+        # Unparseable strings
+        add_exceptions(
+            pl.col(typed_name).is_null() & pl.col(source_col).is_not_null(),
+            "Non-numeric value in '{col}'",
+            source_col,
+            canonical_name,
+        )
 
-    # Dates (ledgers): a non-blank value that matched no known format is invalid.
-    # A genuinely blank date is left null (the canonical schema allows it).
+        # Negative financials (Qty omitted intentionally per business rule)
+        if typed_name in ("__price", "__amount"):
+            add_exceptions(
+                pl.col(typed_name) < 0,
+                "Negative value in '{col}'",
+                typed_name,
+                canonical_name,
+            )
+
+    # Rule: Unparseable dates
     if ledger:
-        bad_date = pl.col("__date").is_null() & pl.col("date").is_not_null()
-        if df.filter(bad_date).height > 0:
-            example = _first_offending(df, bad_date, "date")
-            msg = f"{source_label}: unparseable date '{example}' in column 'Date'"
-            raise DataValidationError(msg)
+        add_exceptions(
+            pl.col("__date").is_null() & pl.col("date").is_not_null(),
+            "Unparseable date in '{col}'",
+            "date",
+            "Date",
+        )
+
+    # Extract valid rows and construct the exceptions frame
+    valid_df = df.filter(~pl.col("__row_number").is_in(list(bad_indices))).drop(
+        "__row_number"
+    )
+
+    exc_schema = {
+        "File Name": pl.Utf8,
+        "Row Number": pl.Int64,
+        "Reason": pl.Utf8,
+        "Offending Value": pl.Utf8,
+        "Full Record": pl.Utf8,
+    }
+
+    exc_df = (
+        pl.DataFrame(exceptions, schema=exc_schema)
+        if exceptions
+        else pl.DataFrame(schema=exc_schema)
+    )
+    return valid_df, exc_df

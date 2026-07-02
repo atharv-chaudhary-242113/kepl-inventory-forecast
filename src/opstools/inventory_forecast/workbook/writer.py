@@ -42,6 +42,7 @@ def write_workbook(
     supplier_analysis_df: pl.DataFrame,
     supplier_summary_df: pl.DataFrame,
     readiness_df: pl.DataFrame,
+    exceptions_df: pl.DataFrame | None = None,
 ) -> None:
     """Write the complete analytics results to an Excel workbook.
 
@@ -61,10 +62,10 @@ def write_workbook(
         supplier_analysis_df: Detailed supplier performance metrics.
         supplier_summary_df: Aggregated supplier portfolio metrics.
         readiness_df: Forecast viability assessment.
+        exceptions_df: Exception reports.
     """
     path.parent.mkdir(parents=True, exist_ok=True)
 
-    # 1. Build Metadata DataFrame
     meta_schema = get_sheet_schema(WorksheetName.METADATA)
     meta_df = pl.DataFrame(
         [
@@ -91,7 +92,6 @@ def write_workbook(
         },
     ).select(list(meta_schema.required_columns))
 
-    # 2. Build Business Intelligence Platform DataFrames
     exec_summary_df = executive_summary.build_executive_summary_df(
         summary.executive_metrics
     )
@@ -100,18 +100,11 @@ def write_workbook(
         summary.procurement_insights
     )
 
-    # 3. Build Core Analytics DataFrames from summary models
     inv_health_df = builders.build_inventory_health_df(summary.inventory_health)
     sup_risk_df = builders.build_supplier_risk_df(summary.supplier_risks)
     src_risk_df = builders.build_sourcing_risk_df(summary.sourcing_risks)
 
-    # Extract DemandCharacteristics from ForecastResult for SBC
     demand_chars = [
-        # Note: We reconstruct partial SBC models here if the engine didn't
-        # pass the raw chars explicitly, utilizing the ForecastResult properties.
-        # But per the architecture, the engine should ideally provide these.
-        # Since SBC is primarily a string output mapping to the forecast result:
-        # We rely on the generic mapping for now to fulfill the schema.
         type(
             "TempSbc",
             (),
@@ -127,7 +120,6 @@ def write_workbook(
     sbc_df = builders.build_sbc_classification_df(demand_chars)
     forecasts_df = builders.build_forecasts_df(summary.forecasts)
 
-    # 4. Map Worksheets to DataFrames
     sheet_mapping = {
         WorksheetName.METADATA: meta_df,
         WorksheetName.EXECUTIVE_SUMMARY: exec_summary_df,
@@ -163,46 +155,39 @@ def write_workbook(
             WorksheetName.FORECAST_READINESS, readiness_df
         ),
         WorksheetName.FORECASTS: forecasts_df,
-        # Empty placeholder for future GUI state
         WorksheetName.DASHBOARD_CACHE: pl.DataFrame(),
     }
 
-    # 5. Persist to Excel
-    _write_to_excel(path, sheet_mapping)
+    _write_to_excel(path, sheet_mapping, exceptions_df)
 
 
 def _enforce_schema(name: WorksheetName, df: pl.DataFrame) -> pl.DataFrame:
-    """Ensure DataFrame exactly matches the worksheet schema."""
     schema = get_sheet_schema(name)
-
-    # Add missing columns with null values to fulfill schema contract
     for col in schema.required_columns:
         if col not in df.columns:
-            # Type fallback based on name inference, defaults to Utf8
             dtype = (
                 pl.Float64
                 if "value" in col or "quantity" in col or "cost" in col
                 else pl.Utf8
             )
             df = df.with_columns(pl.lit(None).cast(dtype).alias(col))
-
     return df.select(list(schema.required_columns))
 
 
 def _write_to_excel(
-    path: Path, sheet_mapping: dict[WorksheetName, pl.DataFrame]
+    path: Path,
+    sheet_mapping: dict[WorksheetName, pl.DataFrame],
+    exceptions_df: pl.DataFrame | None = None,
 ) -> None:
-    """Perform the actual XlsxWriter persistence with BI styling."""
-    # We use xlsxwriter explicitly to control styling for BI platform users
     with pl.Config(tbl_rows=10):
-        # Polars write_excel handles multiple sheets neatly via a dict
-
-        # Convert dictionary keys from Enum to string
         string_keyed_mapping = {
             sheet_name.value: df for sheet_name, df in sheet_mapping.items()
         }
 
-        # Reorder dict to match REQUIRED_SHEET_ORDER
+        # Dynamically append the Exceptions sheet if data exists
+        if exceptions_df is not None and not exceptions_df.is_empty():
+            string_keyed_mapping["Exceptions"] = exceptions_df
+
         ordered_mapping = {}
         for sheet_name in required_sheet_names():
             if sheet_name.value in string_keyed_mapping:
@@ -210,11 +195,13 @@ def _write_to_excel(
                     sheet_name.value
                 ]
 
-        # Use Polars native Excel writer which wraps xlsxwriter
-        import xlsxwriter  # Assumes it is installed as a dependency
+        # Ensure Exceptions is placed at the end of the workbook
+        if "Exceptions" in string_keyed_mapping:
+            ordered_mapping["Exceptions"] = string_keyed_mapping["Exceptions"]
+
+        import xlsxwriter
 
         with xlsxwriter.Workbook(path) as workbook:
-            # Define BI styles
             header_format = workbook.add_format(
                 {
                     "bold": True,
@@ -227,16 +214,12 @@ def _write_to_excel(
             for sheet_name_str, df in ordered_mapping.items():
                 worksheet = workbook.add_worksheet(sheet_name_str)
 
-                # Write headers
                 for col_num, column_name in enumerate(df.columns):
                     worksheet.write(0, col_num, column_name, header_format)
 
-                # Write data
-                # Using row-by-row iteration or zip is faster than standard iter_rows
                 if len(df) > 0:
                     for row_num, row_data in enumerate(df.iter_rows()):
                         for col_num, cell_value in enumerate(row_data):
                             worksheet.write(row_num + 1, col_num, cell_value)
 
-                # Autofit columns
                 worksheet.autofit()

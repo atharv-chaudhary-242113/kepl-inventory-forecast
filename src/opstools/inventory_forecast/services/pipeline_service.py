@@ -16,6 +16,7 @@ import polars as pl
 from opstools.inventory_forecast.domain.enums import SourceKind
 from opstools.inventory_forecast.domain.models import WorkbookMeta
 from opstools.inventory_forecast.engine.orchestrator import run_analytics_engine
+from opstools.inventory_forecast.ingestion import read_source
 from opstools.inventory_forecast.services.state import PipelineState
 from opstools.inventory_forecast.workbook.writer import write_workbook
 
@@ -58,7 +59,7 @@ def execute_pipeline(state: PipelineState) -> None:
 
         # Phase 1: Ingestion
         logger.info("Phase 1: Data Ingestion")
-        source_data = _ingest_data(state)
+        source_data, exceptions_df = _ingest_data(state)
 
         pov_df = source_data.get(SourceKind.POV, pl.DataFrame())
         grn_df = source_data.get(SourceKind.GRN, pl.DataFrame())
@@ -86,26 +87,21 @@ def execute_pipeline(state: PipelineState) -> None:
             closing_stock_df=closing_stock_df,
         )
 
-        # Determine dataset statistics for metadata
-        total_suppliers = 0
+        # Determine dataset statistics
         if "supplier_id" in pov_df.columns:
             total_suppliers = pov_df.select("supplier_id").n_unique()
-
-        total_items = 0
+        else:
+            total_suppliers = 0
         if "item_id" in closing_stock_df.columns:
             total_items = closing_stock_df.select("item_id").n_unique()
-
+        else:
+            total_items = 0
         total_records = len(pov_df) + len(grn_df) + len(pv_df) + len(closing_stock_df)
 
-        state.complete_engine(
-            total_suppliers=total_suppliers,
-            total_items=total_items,
-            total_records=total_records,
-        )
+        state.complete_engine(total_suppliers, total_items, total_records)
 
         # Phase 4: Workbook Generation
         logger.info("Phase 4: Workbook Generation")
-
         current_processing_time = (datetime.now(UTC) - state.start_time).total_seconds()
 
         meta = WorkbookMeta(
@@ -132,6 +128,7 @@ def execute_pipeline(state: PipelineState) -> None:
             supplier_analysis_df=legacy_dfs["supplier_analysis"],
             supplier_summary_df=legacy_dfs["supplier_summary"],
             readiness_df=legacy_dfs["readiness"],
+            exceptions_df=exceptions_df,
         )
 
         state.complete_workbook()
@@ -143,13 +140,11 @@ def execute_pipeline(state: PipelineState) -> None:
         raise
 
 
-def _ingest_data(state: PipelineState) -> dict[SourceKind, pl.DataFrame]:
-    """Read and combine raw data from the configured source set.
-
-    Uses Polars directly to ensure the pipeline functions independently
-    of the underlying ingestion modules' refactor status.
-    """
+def _ingest_data(
+        state: PipelineState
+) -> tuple[dict[SourceKind, pl.DataFrame], pl.DataFrame]:
     data: dict[SourceKind, list[pl.DataFrame]] = {kind: [] for kind in SourceKind}
+    exceptions_list: list[pl.DataFrame] = []
 
     for path, kind in state.config.source_set.iter_with_kind():
         if not path.exists():
@@ -157,26 +152,31 @@ def _ingest_data(state: PipelineState) -> dict[SourceKind, pl.DataFrame]:
             continue
 
         try:
-            if path.suffix.lower() == ".csv":
-                # Increase schema inference length for robust reading
-                df = pl.read_csv(path, infer_schema_length=10000)
-            else:
-                df = pl.read_excel(path, engine="calamine")
-            data[kind].append(df)
+            df_lazy, exc_df = read_source(path, kind)
+            data[kind].append(df_lazy.collect())
+            if exc_df.height > 0:
+                exceptions_list.append(exc_df)
         except Exception as exc:
             logger.error("Failed to read %s: %s", path, exc)
             raise
 
-    # Combine multiple files of the same kind into unified DataFrames
     result: dict[SourceKind, pl.DataFrame] = {}
     for kind, dfs in data.items():
-        if dfs:
-            # relaxed appending allows for slight schema variations in yearly files
-            result[kind] = pl.concat(dfs, how="vertical_relaxed")
-        else:
-            result[kind] = pl.DataFrame()
+        result[kind] = pl.concat(dfs, how="vertical_relaxed") if dfs else pl.DataFrame()
 
-    return result
+    exc_schema = {
+        "File Name": pl.Utf8,
+        "Row Number": pl.Int64,
+        "Reason": pl.Utf8,
+        "Offending Value": pl.Utf8,
+        "Full Record": pl.Utf8,
+    }
+    if exceptions_list:
+        final_exceptions = pl.concat(exceptions_list)
+    else:
+        final_exceptions = pl.DataFrame(schema=exc_schema)
+
+    return result, final_exceptions
 
 
 def _collect_legacy_dataframes(

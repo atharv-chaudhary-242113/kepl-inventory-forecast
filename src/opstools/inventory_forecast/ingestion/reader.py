@@ -35,25 +35,12 @@ from opstools.inventory_forecast.security.paths import (
 _EXCEL_SUFFIXES: frozenset[str] = frozenset({".xlsx", ".xls", ".xlsm"})
 
 
-def read_source(path: Path, kind: SourceKind) -> pl.LazyFrame:
+def read_source(path: Path, kind: SourceKind) -> tuple[pl.LazyFrame, pl.DataFrame]:
     """Read a raw ERP export into a normalized, validated LazyFrame.
 
-    Guarantees on the returned frame: canonical column names and dtypes per the
-    domain schema; for ledgers, supplier is forward-filled and parenthetical-
-    normalized and date is a Polars `Date`; qty/price/amount are non-negative,
-    with price/amount as `Decimal`.
-
-    Validation is performed eagerly at this boundary (the file is read once) and
-    the result is returned as a LazyFrame so downstream stages compose lazily.
-
-    Raises:
-        SecurityError: the path or file fails a THREAT_MODEL.md path/size guard.
-        InvalidSchemaError: no header row was found.
-        MissingColumnError: a required column is missing.
-        DataValidationError: a value violates a domain constraint.
+    Returns:
+        A tuple of (clean_data_lazyframe, exceptions_dataframe).
     """
-    # Trust boundary: validate the untrusted path and bound its size before we
-    # ever open it (THREAT_MODEL.md path-traversal/UNC/ZIP-bomb controls).
     validate_local_path(path)
     enforce_file_size_limits(path)
 
@@ -62,9 +49,6 @@ def read_source(path: Path, kind: SourceKind) -> pl.LazyFrame:
 
     grid = _read_grid(path)
 
-    # Bounded top-of-sheet scan for the header; convert that slice to Python rows
-    # (one small materialization, not the whole sheet) so detection can compare
-    # cell-by-cell.
     scan_rows = grid.head(SCAN_LIMIT).rows()
     header_index = detect_header_row(scan_rows, expected)
     if header_index is None:
@@ -73,8 +57,9 @@ def read_source(path: Path, kind: SourceKind) -> pl.LazyFrame:
 
     table = _extract_table(grid, header_index)
     canonical = map_to_canonical(table, kind, label)
-    validated = finalize_records(canonical, kind, label)
-    return validated.lazy()
+    validated, exceptions = finalize_records(canonical, kind, label)
+
+    return validated.lazy(), exceptions
 
 
 def _read_grid(path: Path) -> pl.DataFrame:
