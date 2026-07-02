@@ -19,6 +19,7 @@ from opstools.inventory_forecast.services.state import (
 
 class MockSourceSet:
     """Mock source set to bypass actual file system interactions."""
+
     def iter_with_kind(self) -> list[tuple[Path, SourceKind]]:
         return []
 

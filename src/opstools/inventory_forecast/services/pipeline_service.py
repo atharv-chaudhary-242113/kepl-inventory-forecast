@@ -141,7 +141,7 @@ def execute_pipeline(state: PipelineState) -> None:
 
 
 def _ingest_data(
-        state: PipelineState
+    state: PipelineState,
 ) -> tuple[dict[SourceKind, pl.DataFrame], pl.DataFrame]:
     data: dict[SourceKind, list[pl.DataFrame]] = {kind: [] for kind in SourceKind}
     exceptions_list: list[pl.DataFrame] = []

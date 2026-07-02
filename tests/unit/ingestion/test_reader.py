@@ -30,7 +30,6 @@ LEDGER_HEADER = [
 ]
 
 
-# pyrefly: ignore [implicit-any-parameter]
 def test_reads_ledger_xlsx_with_all_erp_quirks(make_excel) -> None:
     path = make_excel(
         "pov.xlsx",
@@ -60,7 +59,7 @@ def test_reads_ledger_xlsx_with_all_erp_quirks(make_excel) -> None:
             ("Grand Total", None, None, None, None, None, None, 1313.0),  # footer
         ],
     )
-    df = read_source(path, SourceKind.POV).collect()
+    df, exc_df = read_source(path, SourceKind.POV).collect()
 
     assert df.columns == [
         "date",
@@ -85,7 +84,6 @@ def test_reads_ledger_xlsx_with_all_erp_quirks(make_excel) -> None:
     assert df["voucher"].to_list() == ["PO001", "PO002", "PO003"]
 
 
-# pyrefly: ignore [implicit-any-parameter]
 def test_reads_closing_stock_csv(make_csv) -> None:
     path = make_csv(
         "stock.csv",
@@ -95,13 +93,13 @@ def test_reads_closing_stock_csv(make_csv) -> None:
         "Copper Wire,100,2.50,250.00,C1\n"
         "PVC Tape,4,1.0,4.0,C3\n",
     )
-    df = read_source(path, SourceKind.CLOSING_STOCK).collect()
+    df, _ = read_source(path, SourceKind.CLOSING_STOCK)
+    df.collect()
     assert df.columns == ["item", "qty", "price", "amount"]
     assert df.height == 2
     assert df["amount"].sum() == 254  # 250 + 4, Decimal
 
 
-# pyrefly: ignore [implicit-any-parameter]
 def test_reads_ledger_csv_with_metadata_rows(make_csv) -> None:
     path = make_csv(
         "pv.csv",
@@ -115,7 +113,6 @@ def test_reads_ledger_csv_with_metadata_rows(make_csv) -> None:
     assert df["date"][0] == date(2025, 2, 10)
 
 
-# pyrefly: ignore [implicit-any-parameter]
 def test_reads_ragged_csv_metadata_rows(make_csv) -> None:
     path = make_csv(
         "ragged.csv",
@@ -130,7 +127,6 @@ def test_reads_ragged_csv_metadata_rows(make_csv) -> None:
     assert df["voucher"].to_list() == ["V1"]
 
 
-# pyrefly: ignore [implicit-any-parameter]
 def test_determinism_same_input_same_output(make_csv) -> None:
     text = (
         "Date,Vch/Bill No,Particulars,Item Details,Qty.,Unit,Price,Amount\n"
@@ -146,7 +142,6 @@ def test_unc_path_is_security_error() -> None:
         read_source(Path("//server/share/pov.xlsx"), SourceKind.POV)
 
 
-# pyrefly: ignore [implicit-any-parameter]
 def test_bad_extension_is_security_error(tmp_path) -> None:
     target = tmp_path / "data.txt"
     target.write_text("x")
@@ -154,28 +149,24 @@ def test_bad_extension_is_security_error(tmp_path) -> None:
         read_source(target, SourceKind.POV)
 
 
-# pyrefly: ignore [implicit-any-parameter]
 def test_missing_required_column_is_missing_column_error(make_csv) -> None:
     path = make_csv("bad.csv", "Date,Particulars,Item Details\n2025-01-01,ABC,Wire\n")
     with pytest.raises(MissingColumnError):
         read_source(path, SourceKind.PV).collect()
 
 
-# pyrefly: ignore [implicit-any-parameter]
 def test_no_header_is_invalid_schema_error(make_csv) -> None:
     path = make_csv("nohdr.csv", "foo,bar\n1,2\n")
     with pytest.raises(InvalidSchemaError):
         read_source(path, SourceKind.POV).collect()
 
 
-# pyrefly: ignore [implicit-any-parameter]
 def test_empty_csv_is_invalid_schema_error(make_csv) -> None:
     path = make_csv("empty.csv", "\n\n")
     with pytest.raises(InvalidSchemaError):
         read_source(path, SourceKind.POV).collect()
 
 
-# pyrefly: ignore [implicit-any-parameter]
 def test_negative_value_is_validation_error(make_csv) -> None:
     path = make_csv(
         "neg.csv",
@@ -186,7 +177,6 @@ def test_negative_value_is_validation_error(make_csv) -> None:
         read_source(path, SourceKind.POV).collect()
 
 
-# pyrefly: ignore [implicit-any-parameter]
 def test_missing_file_is_data_validation_error(tmp_path) -> None:
     with pytest.raises(DataValidationError):
         read_source(tmp_path / "ghost.csv", SourceKind.POV)

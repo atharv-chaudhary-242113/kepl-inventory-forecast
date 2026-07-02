@@ -63,14 +63,8 @@ def _load_demand_history(
     pov_path: Path,
 ) -> pl.DataFrame:
     """Load and reconstruct demand history."""
-    pov = read_source(
-        pov_path,
-        SourceKind.POV,
-    )
-
-    return reconstruct_demand(
-        pov,
-    ).collect()
+    pov_lazy, _ = read_source(pov_path, SourceKind.POV)
+    return reconstruct_demand(pov_lazy).collect()
 
 
 def _run_holdout(

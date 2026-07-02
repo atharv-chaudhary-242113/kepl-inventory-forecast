@@ -33,16 +33,68 @@ from opstools.inventory_forecast.ingestion import read_source
 
 def load_demand(
     pov_path: Path,
-) -> pl.DataFrame:
+) -> tuple[pl.DataFrame, pl.DataFrame]:
     """Load demand history."""
-    pov = read_source(
-        pov_path,
-        SourceKind.POV,
+    supported_extensions = {
+        ".csv",
+        ".xls",
+        ".xlsx",
+        ".xlsm",
+    }
+
+    dataframes: list[pl.DataFrame] = []
+    exceptions_list: list[pl.DataFrame] = []
+
+    if pov_path.is_dir():
+        files = sorted(
+            path
+            for path in pov_path.iterdir()
+            if path.is_file() and path.suffix.lower() in supported_extensions
+        )
+    else:
+        files = [pov_path]
+
+    if not files:
+        msg = f"No supported input files found in '{pov_path}'."
+        raise FileNotFoundError(msg)
+
+    for file_path in files:
+        lazy_frame, exceptions = read_source(
+            file_path,
+            SourceKind.POV,
+        )
+
+        dataframes.append(
+            reconstruct_demand(
+                lazy_frame,
+            ).collect()
+        )
+
+        if exceptions.height > 0:
+            exceptions_list.append(exceptions)
+
+    demand = pl.concat(
+        dataframes,
+        how="vertical_relaxed",
     )
 
-    return reconstruct_demand(
-        pov,
-    ).collect()
+    if exceptions_list:
+        all_exceptions = pl.concat(
+            exceptions_list,
+            how="vertical_relaxed",
+        )
+    else:
+        all_exceptions = pl.DataFrame(
+            schema={
+                "File Name": pl.Utf8,
+                "Row Number": pl.Int64,
+                "Reason": pl.Utf8,
+                "Offending Value": pl.Utf8,
+                "Full Record": pl.Utf8,
+            }
+        )
+
+    return demand, all_exceptions
 
 
 def build_observation_profile(
@@ -149,7 +201,7 @@ def main() -> int:
 
     args = parser.parse_args()
 
-    demand = load_demand(
+    demand, exceptions = load_demand(
         args.pov,
     )
 
@@ -241,6 +293,27 @@ def main() -> int:
     print()
     print("CLASSIFICATION VS OBSERVATIONS")
     print(classification_breakdown)
+
+    print()
+
+    print("=" * 60)
+    print("DATA QUALITY")
+    print("=" * 60)
+
+    print(f"Rejected Records: {exceptions.height}")
+
+    if exceptions.height > 0:
+        print()
+        print("REJECTION REASONS")
+        print(
+            exceptions.group_by("Reason")
+            .agg(pl.len().alias("count"))
+            .sort("count", descending=True)
+        )
+
+        print()
+        print("FIRST 20 REJECTED RECORDS")
+        print(exceptions.head(20))
 
     return 0
 
