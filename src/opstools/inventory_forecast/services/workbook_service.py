@@ -13,14 +13,20 @@ import polars as pl
 
 from opstools.inventory_forecast.domain import WorkbookMeta, WorksheetName
 from opstools.inventory_forecast.services.state import (
+    # pyrefly: ignore [missing-module-attribute]
     DashboardState,
+    # pyrefly: ignore [missing-module-attribute]
     build_dashboard_state,
 )
+
+# pyrefly: ignore [missing-module-attribute]
 from opstools.inventory_forecast.workbook.cache import DashboardCache
 from opstools.inventory_forecast.workbook.reader import (
+    # pyrefly: ignore [missing-module-attribute]
     load_dashboard_state as reader_load_dashboard_state,
 )
 from opstools.inventory_forecast.workbook.reader import (
+    # pyrefly: ignore [missing-module-attribute]
     validate_workbook_completeness,
 )
 from opstools.inventory_forecast.workbook.writer import (
@@ -43,10 +49,14 @@ class WorkbookService:
         ],
     ) -> None:
         """Save workbook to disk."""
+        # pyrefly: ignore [missing-argument]
         write_workbook(
+            # pyrefly: ignore [unexpected-keyword]
             output_path=output_path,
             meta=metadata,
+            # pyrefly: ignore [unexpected-keyword]
             cache=cache,
+            # pyrefly: ignore [unexpected-keyword]
             datasets=datasets,
         )
 

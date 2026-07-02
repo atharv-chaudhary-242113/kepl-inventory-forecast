@@ -22,9 +22,11 @@ def _co_supply_rows(
     for m in months:
         rows.append((date(2025, m, 1), f"V{a}{m}", a, item, 1.0, 10.0))
         rows.append((date(2025, m, 1), f"V{b}{m}", b, item, 1.0, 10.0))
+    # pyrefly: ignore [bad-return]
     return rows
 
 
+# pyrefly: ignore [implicit-any-parameter]
 def test_pair_meeting_threshold_is_flagged(ledger) -> None:
     """3 co-supply months -> one pair, status 'suspected'."""
     pov = ledger(_co_supply_rows("Acme", "Globex", "Wire", [1, 2, 3]))
@@ -37,6 +39,7 @@ def test_pair_meeting_threshold_is_flagged(ledger) -> None:
     assert row["status"] == "suspected"
 
 
+# pyrefly: ignore [implicit-any-parameter]
 def test_below_threshold_pair_is_not_flagged(ledger) -> None:
     """2 co-supply months falls under the >=3 threshold."""
     pov = ledger(_co_supply_rows("Acme", "Globex", "Wire", [1, 2]))
@@ -45,6 +48,7 @@ def test_below_threshold_pair_is_not_flagged(ledger) -> None:
     assert out.height == 0
 
 
+# pyrefly: ignore [implicit-any-parameter]
 def test_no_mirror_duplicates(ledger) -> None:
     """(A, B) and (B, A) collapse to a single canonical row."""
     pov = ledger(_co_supply_rows("Beta", "Alpha", "Wire", [1, 2, 3]))
@@ -57,6 +61,7 @@ def test_no_mirror_duplicates(ledger) -> None:
     assert row["supplier_b"] == "Beta"
 
 
+# pyrefly: ignore [implicit-any-parameter]
 def test_self_pair_excluded(ledger) -> None:
     """A supplier transacting an item multiple months does not pair with itself."""
     pov = ledger(
@@ -70,6 +75,7 @@ def test_self_pair_excluded(ledger) -> None:
     assert out.height == 0
 
 
+# pyrefly: ignore [implicit-any-parameter]
 def test_within_month_duplicates_do_not_inflate_count(ledger) -> None:
     """Two POV rows in the same month for one (supplier, item) count once."""
     pov = ledger(
@@ -86,6 +92,7 @@ def test_within_month_duplicates_do_not_inflate_count(ledger) -> None:
     assert out.height == 0
 
 
+# pyrefly: ignore [implicit-any-parameter]
 def test_null_dated_rows_excluded(ledger) -> None:
     """Rows with no date cannot be placed on the monthly axis."""
     rows = _co_supply_rows("Acme", "Globex", "Wire", [1, 2])
@@ -97,6 +104,7 @@ def test_null_dated_rows_excluded(ledger) -> None:
     assert out.height == 0  # the two null-dated co-supplies don't count
 
 
+# pyrefly: ignore [implicit-any-parameter]
 def test_confidence_score_is_derived_not_hardcoded(ledger) -> None:
     """Confidence grows monotonically with the event count, bounded in (0, 1)."""
     low = ledger(_co_supply_rows("Acme", "Globex", "Wire", [1, 2, 3]))
@@ -112,6 +120,7 @@ def test_confidence_score_is_derived_not_hardcoded(ledger) -> None:
     assert abs(c_low["confidence_score"] - 0.75) < 1e-9
 
 
+# pyrefly: ignore [implicit-any-parameter]
 def test_co_supply_must_share_item_not_just_month(ledger) -> None:
     """Two suppliers active in the same months but different items do not pair."""
     pov = ledger(
@@ -128,12 +137,14 @@ def test_co_supply_must_share_item_not_just_month(ledger) -> None:
     assert out.height == 0
 
 
+# pyrefly: ignore [implicit-any-parameter]
 def test_partnership_output_column_order_matches_contract(ledger) -> None:
     """Schema must equal the Supplier_Partnerships sheet column order."""
     out = detect_partnerships(ledger([]), Settings()).collect()
     assert out.columns == _OUTPUT_COLUMNS
 
 
+# pyrefly: ignore [implicit-any-parameter]
 def test_empty_pov_returns_empty_contract(ledger) -> None:
     out = detect_partnerships(ledger([]), Settings()).collect()
     assert out.height == 0

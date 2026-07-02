@@ -18,6 +18,7 @@ _OUTPUT_COLUMNS = [
 ]
 
 
+# pyrefly: ignore [implicit-any-parameter]
 def test_single_source_is_critical(ledger) -> None:
     """One supplier -> single_source dependency, critical risk."""
     pv = ledger([(date(2025, 1, 1), "P1", "Acme", "Wire", 1.0, 100.0)])
@@ -30,6 +31,7 @@ def test_single_source_is_critical(ledger) -> None:
     assert row["risk_level"] == RiskLevel.CRITICAL.value
 
 
+# pyrefly: ignore [implicit-any-parameter]
 def test_concentrated_when_top_supplier_above_80_pct(ledger) -> None:
     """Top share >= 0.80 -> concentrated / high risk."""
     pv = ledger(
@@ -44,6 +46,7 @@ def test_concentrated_when_top_supplier_above_80_pct(ledger) -> None:
     assert row["risk_level"] == RiskLevel.HIGH.value
 
 
+# pyrefly: ignore [implicit-any-parameter]
 def test_moderate_when_top_share_between_50_and_80(ledger) -> None:
     """0.50 <= top share < 0.80 -> moderate / medium risk."""
     pv = ledger(
@@ -58,6 +61,7 @@ def test_moderate_when_top_share_between_50_and_80(ledger) -> None:
     assert row["risk_level"] == RiskLevel.MEDIUM.value
 
 
+# pyrefly: ignore [implicit-any-parameter]
 def test_diversified_when_top_share_below_50(ledger) -> None:
     """Top share < 0.50 -> diversified / low risk."""
     pv = ledger(
@@ -73,6 +77,7 @@ def test_diversified_when_top_share_below_50(ledger) -> None:
     assert row["risk_level"] == RiskLevel.LOW.value
 
 
+# pyrefly: ignore [implicit-any-parameter]
 def test_total_spend_decimal_and_share_is_float(ledger) -> None:
     """Spend stays Decimal-exact; share is a presentation Float64."""
     pv = ledger(
@@ -88,11 +93,13 @@ def test_total_spend_decimal_and_share_is_float(ledger) -> None:
     assert abs(out.row(0, named=True)["top_supplier_share"] - 0.9) < 1e-9
 
 
+# pyrefly: ignore [implicit-any-parameter]
 def test_sourcing_output_column_order_matches_contract(ledger) -> None:
     out = build_sourcing_risk(ledger([])).collect()
     assert out.columns == _OUTPUT_COLUMNS
 
 
+# pyrefly: ignore [implicit-any-parameter]
 def test_sourcing_sorted_by_item(ledger) -> None:
     pv = ledger(
         [

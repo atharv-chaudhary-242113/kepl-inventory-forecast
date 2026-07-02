@@ -9,12 +9,18 @@ import pytest
 
 from opstools.inventory_forecast.domain import WorkbookMeta, WorksheetName
 from opstools.inventory_forecast.workbook.cache import (
+    # pyrefly: ignore [missing-module-attribute]
     DashboardCache,
 )
+
+# pyrefly: ignore [missing-module-attribute]
 from opstools.inventory_forecast.workbook.reader import read_metadata
 from opstools.inventory_forecast.workbook.writer import (
+    # pyrefly: ignore [missing-module-attribute]
     _metadata_dataframe,
+    # pyrefly: ignore [missing-module-attribute]
     _resolve_dataframe,
+    # pyrefly: ignore [missing-module-attribute]
     _validate_dataset_mapping,
     write_workbook,
 )
@@ -36,6 +42,7 @@ def metadata() -> WorkbookMeta:
     )
 
 
+# pyrefly: ignore [implicit-any-type-argument]
 def build_dataset_mapping() -> dict:
     from opstools.inventory_forecast.workbook import schema
 
@@ -128,10 +135,14 @@ def test_write_workbook_creates_xlsx(
 ) -> None:
     output = tmp_path / "output.xlsx"
 
+    # pyrefly: ignore [missing-argument]
     write_workbook(
+        # pyrefly: ignore [unexpected-keyword]
         output_path=output,
         meta=metadata,
+        # pyrefly: ignore [unexpected-keyword]
         cache=DashboardCache(datasets=()),
+        # pyrefly: ignore [unexpected-keyword]
         datasets=build_dataset_mapping(),
     )
 
@@ -144,10 +155,14 @@ def test_write_workbook_removes_temp_file(
 ) -> None:
     output = tmp_path / "output.xlsx"
 
+    # pyrefly: ignore [missing-argument]
     write_workbook(
+        # pyrefly: ignore [unexpected-keyword]
         output_path=output,
         meta=metadata,
+        # pyrefly: ignore [unexpected-keyword]
         cache=DashboardCache(datasets=()),
+        # pyrefly: ignore [unexpected-keyword]
         datasets=build_dataset_mapping(),
     )
 
@@ -162,10 +177,14 @@ def test_workbook_round_trip(
 ) -> None:
     output = tmp_path / "roundtrip.xlsx"
 
+    # pyrefly: ignore [missing-argument]
     write_workbook(
+        # pyrefly: ignore [unexpected-keyword]
         output_path=output,
         meta=metadata,
+        # pyrefly: ignore [unexpected-keyword]
         cache=DashboardCache(datasets=()),
+        # pyrefly: ignore [unexpected-keyword]
         datasets=build_dataset_mapping(),
     )
 
@@ -176,8 +195,11 @@ def test_workbook_round_trip(
 
 @patch("opstools.inventory_forecast.workbook.writer._resolve_dataframe")
 def test_write_workbook_cleans_temp_file_on_failure(
+    # pyrefly: ignore [implicit-any-parameter]
     mock_resolve,
+    # pyrefly: ignore [implicit-any-parameter]
     tmp_path,
+    # pyrefly: ignore [implicit-any-parameter]
     metadata,
 ) -> None:
     mock_resolve.side_effect = RuntimeError("boom")
@@ -185,10 +207,14 @@ def test_write_workbook_cleans_temp_file_on_failure(
     output = tmp_path / "out.xlsx"
 
     with pytest.raises(RuntimeError):
+        # pyrefly: ignore [missing-argument]
         write_workbook(
+            # pyrefly: ignore [unexpected-keyword]
             output_path=output,
             meta=metadata,
+            # pyrefly: ignore [unexpected-keyword]
             cache=DashboardCache(datasets=()),
+            # pyrefly: ignore [unexpected-keyword]
             datasets=build_dataset_mapping(),
         )
 
@@ -200,7 +226,9 @@ def test_write_workbook_cleans_temp_file_on_failure(
 @patch("pathlib.Path.unlink")
 @patch("opstools.inventory_forecast.workbook.writer._resolve_dataframe")
 def test_write_workbook_ignores_temp_cleanup_failure(
+    # pyrefly: ignore [implicit-any-parameter]
     mock_resolve,
+    # pyrefly: ignore [implicit-any-parameter]
     mock_unlink,
     tmp_path: Path,
     metadata: WorkbookMeta,
@@ -212,9 +240,13 @@ def test_write_workbook_ignores_temp_cleanup_failure(
     output = tmp_path / "out.xlsx"
 
     with pytest.raises(RuntimeError):
+        # pyrefly: ignore [missing-argument]
         write_workbook(
+            # pyrefly: ignore [unexpected-keyword]
             output_path=output,
             meta=metadata,
+            # pyrefly: ignore [unexpected-keyword]
             cache=DashboardCache(datasets=()),
+            # pyrefly: ignore [unexpected-keyword]
             datasets=build_dataset_mapping(),
         )

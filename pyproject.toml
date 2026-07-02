@@ -23,6 +23,9 @@ ml = [
     "lightgbm>=4.5.0",
 ]
 
+[tool.pyrefly.errors]
+redundant-cast = "warn"
+
 
 [project.scripts]
 inventory-forecast = "opstools.inventory_forecast.__main__:main"
@@ -30,8 +33,8 @@ inventory-forecast = "opstools.inventory_forecast.__main__:main"
 
 [dependency-groups]
 dev = [
-    "mypy>=2.1.0",
     "pyinstaller>=6.20.0",
+    "pyrefly>=1.1.1",
     "pytest>=9.0.3",
     "pytest-benchmark>=5.2.3",
     "pytest-cov>=7.1.0",
@@ -85,23 +88,23 @@ convention = "google"           # Standardized in docs/CODING_STANDARDS.md
 docstring-code-format = true
 
 
-[tool.mypy]
-python_version = "3.12"
-strict = true
-warn_unreachable = true
-warn_redundant_casts = true
-pretty = true
-namespace_packages = true
-explicit_package_bases = true
-mypy_path = "src"
-
-[[tool.mypy.overrides]]
-# These scientific deps don't ship type stubs. Silence "missing import" for
-# exactly them rather than weakening strict mode globally.
-module = ["statsforecast.*", "fastexcel.*", "plotly.*", "sklearn.*", "lightgbm.*"]
-ignore_missing_imports = true
-
-
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-ra"             # Short summary of all non-passing outcomes.
+
+[tool.pyrefly]
+search-path = ["src"]
+python-version = "3.12.0"
+preset = "strict"
+
+exclude = [
+    "tests/**",
+]
+
+ignore-missing-imports = [
+    "statsforecast.*",
+    "fastexcel.*",
+    "plotly.*",
+    "sklearn.*",
+    "lightgbm.*",
+]

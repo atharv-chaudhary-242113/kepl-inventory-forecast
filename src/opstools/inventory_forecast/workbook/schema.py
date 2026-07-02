@@ -25,24 +25,30 @@ from opstools.inventory_forecast.domain import (
     WorksheetSchemaError,
 )
 
-WORKBOOK_SCHEMA_VERSION: Final[Version] = Version("1.0.0")
-SUPPORTED_MAJOR_VERSION: Final[int] = 1
+# Bumped to 2.0.0 to reflect the Business Intelligence platform pivot
+WORKBOOK_SCHEMA_VERSION: Final[Version] = Version("2.0.0")
+SUPPORTED_MAJOR_VERSION: Final[int] = 2
 
+# The single source of truth for dashboard and manager reporting.
 WORKBOOK_SHEET_ORDER: Final[tuple[WorksheetName, ...]] = (
     WorksheetName.METADATA,
-    WorksheetName.DEMAND_HISTORY,
-    WorksheetName.FORECASTS,
+    WorksheetName.EXECUTIVE_SUMMARY,
+    WorksheetName.DASHBOARD_DATA,
+    WorksheetName.CURRENT_DEMAND,
+    WorksheetName.INVENTORY_HEALTH,
+    WorksheetName.PROCUREMENT_INSIGHTS,
     WorksheetName.SUPPLIER_ANALYSIS,
-    WorksheetName.SUPPLIER_PARTNERSHIPS,
-    WorksheetName.LEAD_TIME_ANALYSIS,
+    WorksheetName.SUPPLIER_SUMMARY,
+    WorksheetName.SUPPLIER_RISK,
+    WorksheetName.SOURCING_RISK,
+    WorksheetName.LEAD_TIME,
     WorksheetName.PENDING_DELIVERIES,
     WorksheetName.FINANCIAL_SUMMARY,
+    WorksheetName.INVENTORY_VALUATION,
     WorksheetName.ABC_CLASSIFICATION,
     WorksheetName.SBC_CLASSIFICATION,
-    WorksheetName.INVENTORY_VALUATION,
-    WorksheetName.PORTFOLIO_ANALYSIS,
-    WorksheetName.SUPPLIER_SUMMARY,
     WorksheetName.FORECAST_READINESS,
+    WorksheetName.FORECASTS,
     WorksheetName.DASHBOARD_CACHE,
 )
 
@@ -69,8 +75,28 @@ WORKSHEETS: Final[dict[WorksheetName, WorksheetSchema]] = {
             "processing_time_seconds",
         ),
     ),
-    WorksheetName.DEMAND_HISTORY: WorksheetSchema(
-        name=WorksheetName.DEMAND_HISTORY,
+    WorksheetName.EXECUTIVE_SUMMARY: WorksheetSchema(
+        name=WorksheetName.EXECUTIVE_SUMMARY,
+        required_columns=(
+            "category",
+            "metric_name",
+            "value",
+            "trend",
+            "status",
+        ),
+    ),
+    WorksheetName.DASHBOARD_DATA: WorksheetSchema(
+        name=WorksheetName.DASHBOARD_DATA,
+        required_columns=(
+            "panel_id",
+            "dimension",
+            "metric",
+            "value",
+            "percentage",
+        ),
+    ),
+    WorksheetName.CURRENT_DEMAND: WorksheetSchema(
+        name=WorksheetName.CURRENT_DEMAND,
         required_columns=(
             "period",
             "supplier",
@@ -79,18 +105,24 @@ WORKSHEETS: Final[dict[WorksheetName, WorksheetSchema]] = {
             "demand_value",
         ),
     ),
-    WorksheetName.FORECASTS: WorksheetSchema(
-        name=WorksheetName.FORECASTS,
+    WorksheetName.INVENTORY_HEALTH: WorksheetSchema(
+        name=WorksheetName.INVENTORY_HEALTH,
         required_columns=(
-            "supplier",
             "item",
-            "forecast_period",
-            "forecast_quantity",
-            "forecast_value",
-            "trend_component",
-            "seasonal_component",
-            "model_used",
-            "confidence_score",
+            "status",
+            "months_of_cover",
+            "excess_inventory_value",
+            "action_required",
+        ),
+    ),
+    WorksheetName.PROCUREMENT_INSIGHTS: WorksheetSchema(
+        name=WorksheetName.PROCUREMENT_INSIGHTS,
+        required_columns=(
+            "insight_type",
+            "priority",
+            "description",
+            "affected_items",
+            "potential_impact",
         ),
     ),
     WorksheetName.SUPPLIER_ANALYSIS: WorksheetSchema(
@@ -107,18 +139,37 @@ WORKSHEETS: Final[dict[WorksheetName, WorksheetSchema]] = {
             "risk_score",
         ),
     ),
-    WorksheetName.SUPPLIER_PARTNERSHIPS: WorksheetSchema(
-        name=WorksheetName.SUPPLIER_PARTNERSHIPS,
+    WorksheetName.SUPPLIER_SUMMARY: WorksheetSchema(
+        name=WorksheetName.SUPPLIER_SUMMARY,
         required_columns=(
-            "supplier_a",
-            "supplier_b",
-            "matching_events",
-            "confidence_score",
-            "status",
+            "supplier",
+            "sku_count",
+            "total_quantity",
+            "total_spend",
         ),
     ),
-    WorksheetName.LEAD_TIME_ANALYSIS: WorksheetSchema(
-        name=WorksheetName.LEAD_TIME_ANALYSIS,
+    WorksheetName.SUPPLIER_RISK: WorksheetSchema(
+        name=WorksheetName.SUPPLIER_RISK,
+        required_columns=(
+            "supplier",
+            "dependency_level",
+            "risk_level",
+            "supplier_count",
+            "items_at_risk",
+        ),
+    ),
+    WorksheetName.SOURCING_RISK: WorksheetSchema(
+        name=WorksheetName.SOURCING_RISK,
+        required_columns=(
+            "item",
+            "supplier_count",
+            "primary_supplier",
+            "dependency_level",
+            "risk_level",
+        ),
+    ),
+    WorksheetName.LEAD_TIME: WorksheetSchema(
+        name=WorksheetName.LEAD_TIME,
         required_columns=(
             "supplier",
             "item",
@@ -154,6 +205,16 @@ WORKSHEETS: Final[dict[WorksheetName, WorksheetSchema]] = {
             "total_spend",
         ),
     ),
+    WorksheetName.INVENTORY_VALUATION: WorksheetSchema(
+        name=WorksheetName.INVENTORY_VALUATION,
+        required_columns=(
+            "item",
+            "quantity",
+            "unit_cost",
+            "inventory_value",
+            "snapshot_date",
+        ),
+    ),
     WorksheetName.ABC_CLASSIFICATION: WorksheetSchema(
         name=WorksheetName.ABC_CLASSIFICATION,
         required_columns=(
@@ -174,37 +235,6 @@ WORKSHEETS: Final[dict[WorksheetName, WorksheetSchema]] = {
             "demand_class",
         ),
     ),
-    WorksheetName.INVENTORY_VALUATION: WorksheetSchema(
-        name=WorksheetName.INVENTORY_VALUATION,
-        required_columns=(
-            "item",
-            "quantity",
-            "unit_cost",
-            "inventory_value",
-            "snapshot_date",
-        ),
-    ),
-    WorksheetName.PORTFOLIO_ANALYSIS: WorksheetSchema(
-        name=WorksheetName.PORTFOLIO_ANALYSIS,
-        required_columns=(
-            "supplier",
-            "item",
-            "observation_count",
-            "total_quantity",
-            "total_value",
-            "first_purchase",
-            "last_purchase",
-        ),
-    ),
-    WorksheetName.SUPPLIER_SUMMARY: WorksheetSchema(
-        name=WorksheetName.SUPPLIER_SUMMARY,
-        required_columns=(
-            "supplier",
-            "sku_count",
-            "total_quantity",
-            "total_spend",
-        ),
-    ),
     WorksheetName.FORECAST_READINESS: WorksheetSchema(
         name=WorksheetName.FORECAST_READINESS,
         required_columns=(
@@ -218,9 +248,70 @@ WORKSHEETS: Final[dict[WorksheetName, WorksheetSchema]] = {
             "forecast_readiness",
         ),
     ),
+    WorksheetName.FORECASTS: WorksheetSchema(
+        name=WorksheetName.FORECASTS,
+        required_columns=(
+            "supplier",
+            "item",
+            "forecast_period",
+            "forecast_quantity",
+            "forecast_value",
+            "trend_component",
+            "seasonal_component",
+            "model_used",
+            "confidence_score",
+        ),
+    ),
     WorksheetName.DASHBOARD_CACHE: WorksheetSchema(
         name=WorksheetName.DASHBOARD_CACHE,
         required_columns=(),
+    ),
+    # =========================================================================
+    # Preserved for backward compatibility / transition mapping
+    # =========================================================================
+    WorksheetName.DEMAND_HISTORY: WorksheetSchema(
+        name=WorksheetName.DEMAND_HISTORY,
+        required_columns=(
+            "period",
+            "supplier",
+            "item",
+            "demand_quantity",
+            "demand_value",
+        ),
+    ),
+    WorksheetName.SUPPLIER_PARTNERSHIPS: WorksheetSchema(
+        name=WorksheetName.SUPPLIER_PARTNERSHIPS,
+        required_columns=(
+            "supplier_a",
+            "supplier_b",
+            "matching_events",
+            "confidence_score",
+            "status",
+        ),
+    ),
+    WorksheetName.LEAD_TIME_ANALYSIS: WorksheetSchema(
+        name=WorksheetName.LEAD_TIME_ANALYSIS,
+        required_columns=(
+            "supplier",
+            "item",
+            "pov_date",
+            "grn_date",
+            "ordered_qty",
+            "delivered_qty",
+            "lead_time_days",
+        ),
+    ),
+    WorksheetName.PORTFOLIO_ANALYSIS: WorksheetSchema(
+        name=WorksheetName.PORTFOLIO_ANALYSIS,
+        required_columns=(
+            "supplier",
+            "item",
+            "observation_count",
+            "total_quantity",
+            "total_value",
+            "first_purchase",
+            "last_purchase",
+        ),
     ),
 }
 

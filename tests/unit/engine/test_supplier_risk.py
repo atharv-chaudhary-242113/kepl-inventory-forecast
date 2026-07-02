@@ -26,10 +26,12 @@ _OUTPUT_COLUMNS = [
 ]
 
 
+# pyrefly: ignore [implicit-any-type-argument]
 def _row_by_supplier(df: pl.DataFrame, supplier: str) -> dict:
     return next(r for r in df.iter_rows(named=True) if r["supplier"] == supplier)
 
 
+# pyrefly: ignore [implicit-any-parameter]
 def test_perfect_supplier_has_max_reliability_zero_risk(ledger) -> None:
     """All orders delivered on a consistent lead time -> reliability 1.0, low risk."""
     pov = ledger(
@@ -58,6 +60,7 @@ def test_perfect_supplier_has_max_reliability_zero_risk(ledger) -> None:
     assert row["risk_score"] == 0.0
 
 
+# pyrefly: ignore [implicit-any-parameter]
 def test_completely_failed_supplier_has_high_risk(ledger) -> None:
     """No deliveries at all -> reliability 0, shortfall + pending drive risk up."""
     pov = ledger([(date(2025, 1, 1), "O1", "Acme", "Wire", 10.0, 100.0)])
@@ -77,6 +80,7 @@ def test_completely_failed_supplier_has_high_risk(ledger) -> None:
     assert row["risk_score"] <= 1.0
 
 
+# pyrefly: ignore [implicit-any-parameter]
 def test_total_orders_dedupes_across_allocation_rows(ledger) -> None:
     """An order split across two receipts must still count as one order."""
     pov = ledger([(date(2025, 1, 1), "O1", "Acme", "Wire", 10.0, 100.0)])
@@ -98,6 +102,7 @@ def test_total_orders_dedupes_across_allocation_rows(ledger) -> None:
     assert row["total_deliveries"] == 2  # two receipts
 
 
+# pyrefly: ignore [implicit-any-parameter]
 def test_total_spend_is_decimal(ledger) -> None:
     """Supplier spend stays Decimal-exact."""
     pov = ledger([])
@@ -115,6 +120,7 @@ def test_total_spend_is_decimal(ledger) -> None:
     assert row["total_spend"] == Decimal("145.6710")
 
 
+# pyrefly: ignore [implicit-any-parameter]
 def test_lead_time_stddev_is_null_for_single_delivery(ledger) -> None:
     """A single delivery has undefined sample std (ddof=1)."""
     pov = ledger([(date(2025, 1, 1), "O1", "Acme", "Wire", 5.0, 50.0)])
@@ -129,6 +135,7 @@ def test_lead_time_stddev_is_null_for_single_delivery(ledger) -> None:
     assert out.row(0, named=True)["average_lead_time"] == 5.0
 
 
+# pyrefly: ignore [implicit-any-parameter]
 def test_supplier_universe_unions_across_sources(ledger) -> None:
     """A supplier present only in PV still appears (with zero ops counts)."""
     pov = ledger([(date(2025, 1, 1), "O1", "Acme", "Wire", 1.0, 1.0)])
@@ -154,6 +161,7 @@ def test_supplier_universe_unions_across_sources(ledger) -> None:
     assert globex["pending_deliveries"] == 0
 
 
+# pyrefly: ignore [implicit-any-parameter]
 def test_risk_score_bounded_in_unit_interval(ledger) -> None:
     """risk_score is always in [0, 1] regardless of input shape."""
     pov = ledger(
@@ -174,6 +182,7 @@ def test_risk_score_bounded_in_unit_interval(ledger) -> None:
     assert 0.0 <= row["reliability_score"] <= 1.0
 
 
+# pyrefly: ignore [implicit-any-parameter]
 def test_supplier_output_column_order_matches_contract(ledger) -> None:
     """Schema must equal the Supplier_Analysis sheet column order."""
     lt = compute_lead_time(ledger([]), ledger([]))
@@ -185,6 +194,7 @@ def test_supplier_output_column_order_matches_contract(ledger) -> None:
     assert out.columns == _OUTPUT_COLUMNS
 
 
+# pyrefly: ignore [implicit-any-parameter]
 def test_supplier_rows_sorted_by_supplier(ledger) -> None:
     """Output is deterministic by supplier name."""
     pv = ledger(

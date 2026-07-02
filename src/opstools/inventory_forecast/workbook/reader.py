@@ -1,204 +1,153 @@
-"""Workbook reader and persistence boundary.
+"""Workbook ingestion and reading.
 
-This module handles workbook ingestion, schema validation,
-and dashboard cache reconstruction. It closes the I/O
-persistence loop started by writer.py.
+Provides strict read access to the generated Business Intelligence
+workbook. Dashboards and secondary reporting tools must use this
+module to read pre-computed data, enforcing the "single source of truth"
+architecture.
 
-No analytic or forecasting computation occurs here. It only
-returns immutable models and dataframes.
+By forcing dashboards to read from the workbook (via this module) rather
+than directly from the engine, we guarantee that managers see exactly
+what is in the Excel file, with zero duplicate computation.
 """
 
 from __future__ import annotations
 
-import logging
 from pathlib import Path
 
 import polars as pl
-from pydantic import ValidationError
-from python_calamine import CalamineWorkbook
 
-from opstools.inventory_forecast.domain import (
-    WorkbookError,
-    WorkbookMeta,
-    WorksheetMetaDataError,
-    WorksheetName,
+from opstools.inventory_forecast.domain.enums import WorksheetName
+from opstools.inventory_forecast.domain.errors import (
+    WorkbookVersionError,
     WorksheetSchemaError,
 )
-from opstools.inventory_forecast.workbook import schema
-from opstools.inventory_forecast.workbook.cache import (
-    DashboardCache,
-)
-from opstools.inventory_forecast.workbook.cache import (
-    from_dataframe as cache_from_dataframe,
+from opstools.inventory_forecast.workbook.schema import (
+    get_sheet_schema,
+    validate_sheet_columns,
+    validate_workbook_version,
 )
 
-logger = logging.getLogger(__name__)
 
+def read_worksheet(path: Path, sheet_name: WorksheetName) -> pl.DataFrame:
+    """Read and validate a specific worksheet from the BI workbook.
 
-def load_dashboard_state(
-    path: Path,
-) -> tuple[WorkbookMeta, DashboardCache]:
-    """Load the minimal workbook state required by the dashboard.
+    Args:
+        path: Path to the generated Excel workbook.
+        sheet_name: The target worksheet to read.
 
-    This avoids loading heavy analytical worksheets and allows
-    the UI to start without recomputation.
+    Returns:
+        A Polars DataFrame containing the worksheet data.
+
+    Raises:
+        FileNotFoundError: If the workbook does not exist.
+        WorksheetSchemaError: If the worksheet is missing or malformed.
     """
-    logger.info(
-        "Loading dashboard state from %s",
-        path,
-    )
-
-    _validate_workbook_path(path)
-    validate_workbook_completeness(path)
-
-    metadata = read_metadata(path)
-    cache = read_cache(path)
-
-    return metadata, cache
-
-
-def read_metadata(
-    path: Path,
-) -> WorkbookMeta:
-    """Read and validate workbook metadata."""
-    logger.debug(
-        "Reading metadata from %s",
-        path,
-    )
-
-    dataframe = read_worksheet(
-        path,
-        WorksheetName.METADATA,
-    )
-
-    if dataframe.is_empty():
-        raise WorksheetMetaDataError("Metadata worksheet is empty.")
-
-    if dataframe.height != 1:
-        raise WorksheetMetaDataError("Metadata worksheet must contain exactly one row.")
-
-    record = dataframe.row(
-        0,
-        named=True,
-    )
+    if not path.exists():
+        raise FileNotFoundError(f"Workbook not found at {path}")
 
     try:
-        metadata = WorkbookMeta(**record)
-    except ValidationError as exc:
-        raise WorksheetMetaDataError(f"Metadata validation failed: {exc}") from exc
-
-    try:
-        schema.validate_metadata(metadata)
-    except Exception as exc:
-        raise WorksheetMetaDataError(
-            f"Metadata schema validation failed: {exc}"
-        ) from exc
-
-    logger.debug(
-        "Workbook schema version: %s",
-        metadata.schema_version,
-    )
-
-    return metadata
-
-
-def read_cache(
-    path: Path,
-) -> DashboardCache:
-    """Read and reconstruct dashboard cache state."""
-    dataframe = read_worksheet(
-        path,
-        WorksheetName.DASHBOARD_CACHE,
-    )
-
-    try:
-        return cache_from_dataframe(dataframe)
-    except ValueError as exc:
-        raise WorksheetSchemaError(
-            f"Failed to reconstruct dashboard cache: {exc}"
-        ) from exc
-
-
-def read_worksheet(
-    path: Path,
-    sheet_name: WorksheetName,
-) -> pl.DataFrame:
-    """Read a worksheet and enforce schema constraints."""
-    _validate_workbook_path(path)
-
-    logger.debug(
-        "Reading worksheet %s from %s",
-        sheet_name.value,
-        path,
-    )
-
-    try:
-        dataframe = pl.read_excel(
-            path,
+        # Calamine engine provides high-performance, memory-safe Excel parsing
+        df = pl.read_excel(
+            source=path,
             sheet_name=sheet_name.value,
             engine="calamine",
         )
-
-    except Exception as exc:
-        raise WorkbookError(
-            f"Failed to read worksheet {sheet_name.value}: {exc}"
-        ) from exc
-
-    try:
-        schema.validate_sheet_columns(
-            sheet_name,
-            set(dataframe.columns),
-        )
     except Exception as exc:
         raise WorksheetSchemaError(
-            f"Worksheet {sheet_name.value} failed schema validation: {exc}"
+            f"Failed to read worksheet {sheet_name.value!r} from {path}. "
+            f"The sheet may be missing or the file may be corrupted."
         ) from exc
 
-    logger.debug(
-        "Loaded worksheet %s (rows=%s, cols=%s)",
-        sheet_name.value,
-        dataframe.height,
-        dataframe.width,
-    )
+    # Enforce schema contract immediately upon read
+    _validate_read_schema(sheet_name, df)
 
-    return dataframe
+    return df
 
 
-def _validate_workbook_path(
-    path: Path,
-) -> None:
-    """Validate workbook path before any I/O."""
-    if not path.exists():
-        raise WorkbookError(f"Workbook does not exist: {path}")
+def _validate_read_schema(sheet_name: WorksheetName, df: pl.DataFrame) -> None:
+    """Validate DataFrame against the strict worksheet schema."""
+    if sheet_name == WorksheetName.DASHBOARD_CACHE:
+        # Dashboard cache is structurally fluid; skip strict column validation
+        return
 
-    if not path.is_file():
-        raise WorkbookError(f"Workbook path is not a file: {path}")
+    validate_sheet_columns(sheet_name, set(df.columns))
 
-    if path.suffix.lower() != ".xlsx":
-        raise WorkbookError(f"Expected .xlsx workbook, got: {path.name}")
+    # Ensure required columns maintain correct basic types
+    schema = get_sheet_schema(sheet_name)
 
-
-def validate_workbook_completeness(
-    path: Path,
-) -> None:
-    """Validate that all required worksheets are physically
-    present before attempting workbook reconstruction.
-    """  # noqa: D205
-    try:
-        workbook = CalamineWorkbook.from_path(str(path))
-    except Exception as exc:
-        raise WorkbookError(f"Failed to inspect workbook: {exc}") from exc
-
-    available_sheets = set(workbook.sheet_names)
-
-    expected_sheets = {sheet.value for sheet in schema.required_sheet_names()}
-
-    missing_sheets = expected_sheets - available_sheets
-
-    if missing_sheets:
-        raise WorkbookError(
-            "Workbook is missing required worksheets: "
-            + ", ".join(sorted(missing_sheets))
+    # We do not strictly cast here to avoid data destruction, but we verify presence.
+    # Typecasting is pushed to the explicit read functions
+    # if specific metrics are needed.
+    missing_cols = set(schema.required_columns) - set(df.columns)
+    if missing_cols:
+        raise WorksheetSchemaError(
+            f"Worksheet {sheet_name.value!r} missing required columns: {missing_cols}"
         )
 
-    logger.debug("Workbook completeness validation passed.")
+
+def verify_workbook_compatibility(path: Path) -> None:
+    """Verify that the workbook is compatible with the current application version.
+
+    Reads the Metadata sheet and checks the schema_version against the
+    system's supported major version.
+    """
+    try:
+        meta_df = read_worksheet(path, WorksheetName.METADATA)
+    except Exception as exc:
+        raise WorkbookVersionError(
+            "Could not read Metadata sheet to verify version."
+        ) from exc
+
+    if "schema_version" not in meta_df.columns:
+        raise WorkbookVersionError("Metadata sheet is missing 'schema_version' column.")
+
+    if meta_df.height == 0:
+        raise WorkbookVersionError("Metadata sheet is empty.")
+
+    version_str = meta_df.get_column("schema_version").item(0)
+    if not isinstance(version_str, str):
+        version_str = str(version_str)
+
+    validate_workbook_version(version_str)
+
+
+# ======================================================================================
+# Business Intelligence Dashboard Accessors
+# ======================================================================================
+
+
+def read_dashboard_data(path: Path) -> pl.DataFrame:
+    """Read pre-computed dashboard visualization metrics.
+
+    This is the primary data source for Plotly charting.
+    """
+    return read_worksheet(path, WorksheetName.DASHBOARD_DATA)
+
+
+def read_executive_summary(path: Path) -> pl.DataFrame:
+    """Read high-level executive KPIs."""
+    return read_worksheet(path, WorksheetName.EXECUTIVE_SUMMARY)
+
+
+def read_procurement_insights(path: Path) -> pl.DataFrame:
+    """Read actionable alerts and insights for procurement managers."""
+    return read_worksheet(path, WorksheetName.PROCUREMENT_INSIGHTS)
+
+
+def read_inventory_health(path: Path) -> pl.DataFrame:
+    """Read the current inventory health status for all items."""
+    return read_worksheet(path, WorksheetName.INVENTORY_HEALTH)
+
+
+def read_supplier_risks(path: Path) -> pl.DataFrame:
+    """Read supplier risk profiles and dependency warnings."""
+    return read_worksheet(path, WorksheetName.SUPPLIER_RISK)
+
+
+def read_forecasts(path: Path) -> pl.DataFrame:
+    """Read the generated demand forecasts.
+
+    Note: Under the BI platform architecture, forecasting is a secondary
+    analytical layer. Dashboards should prioritize health and risk metrics.
+    """
+    return read_worksheet(path, WorksheetName.FORECASTS)

@@ -30,7 +30,8 @@ LEDGER_HEADER = [
 ]
 
 
-def test_reads_ledger_xlsx_with_all_erp_quirks(make_excel):
+# pyrefly: ignore [implicit-any-parameter]
+def test_reads_ledger_xlsx_with_all_erp_quirks(make_excel) -> None:
     path = make_excel(
         "pov.xlsx",
         LEDGER_HEADER,
@@ -84,7 +85,8 @@ def test_reads_ledger_xlsx_with_all_erp_quirks(make_excel):
     assert df["voucher"].to_list() == ["PO001", "PO002", "PO003"]
 
 
-def test_reads_closing_stock_csv(make_csv):
+# pyrefly: ignore [implicit-any-parameter]
+def test_reads_closing_stock_csv(make_csv) -> None:
     path = make_csv(
         "stock.csv",
         "KEPL Pvt Ltd\n"
@@ -99,7 +101,8 @@ def test_reads_closing_stock_csv(make_csv):
     assert df["amount"].sum() == 254  # 250 + 4, Decimal
 
 
-def test_reads_ledger_csv_with_metadata_rows(make_csv):
+# pyrefly: ignore [implicit-any-parameter]
+def test_reads_ledger_csv_with_metadata_rows(make_csv) -> None:
     path = make_csv(
         "pv.csv",
         "KEPL Pvt Ltd\n"
@@ -112,7 +115,8 @@ def test_reads_ledger_csv_with_metadata_rows(make_csv):
     assert df["date"][0] == date(2025, 2, 10)
 
 
-def test_reads_ragged_csv_metadata_rows(make_csv):
+# pyrefly: ignore [implicit-any-parameter]
+def test_reads_ragged_csv_metadata_rows(make_csv) -> None:
     path = make_csv(
         "ragged.csv",
         "KEPL Pvt Ltd\n"
@@ -126,7 +130,8 @@ def test_reads_ragged_csv_metadata_rows(make_csv):
     assert df["voucher"].to_list() == ["V1"]
 
 
-def test_determinism_same_input_same_output(make_csv):
+# pyrefly: ignore [implicit-any-parameter]
+def test_determinism_same_input_same_output(make_csv) -> None:
     text = (
         "Date,Vch/Bill No,Particulars,Item Details,Qty.,Unit,Price,Amount\n"
         "2025-01-01,V1,ABC,Wire,1,Nos,1,1\n"
@@ -136,37 +141,42 @@ def test_determinism_same_input_same_output(make_csv):
     assert first.equals(second)
 
 
-def test_unc_path_is_security_error():
+def test_unc_path_is_security_error() -> None:
     with pytest.raises(SecurityError):
         read_source(Path("//server/share/pov.xlsx"), SourceKind.POV)
 
 
-def test_bad_extension_is_security_error(tmp_path):
+# pyrefly: ignore [implicit-any-parameter]
+def test_bad_extension_is_security_error(tmp_path) -> None:
     target = tmp_path / "data.txt"
     target.write_text("x")
     with pytest.raises(SecurityError):
         read_source(target, SourceKind.POV)
 
 
-def test_missing_required_column_is_missing_column_error(make_csv):
+# pyrefly: ignore [implicit-any-parameter]
+def test_missing_required_column_is_missing_column_error(make_csv) -> None:
     path = make_csv("bad.csv", "Date,Particulars,Item Details\n2025-01-01,ABC,Wire\n")
     with pytest.raises(MissingColumnError):
         read_source(path, SourceKind.PV).collect()
 
 
-def test_no_header_is_invalid_schema_error(make_csv):
+# pyrefly: ignore [implicit-any-parameter]
+def test_no_header_is_invalid_schema_error(make_csv) -> None:
     path = make_csv("nohdr.csv", "foo,bar\n1,2\n")
     with pytest.raises(InvalidSchemaError):
         read_source(path, SourceKind.POV).collect()
 
 
-def test_empty_csv_is_invalid_schema_error(make_csv):
+# pyrefly: ignore [implicit-any-parameter]
+def test_empty_csv_is_invalid_schema_error(make_csv) -> None:
     path = make_csv("empty.csv", "\n\n")
     with pytest.raises(InvalidSchemaError):
         read_source(path, SourceKind.POV).collect()
 
 
-def test_negative_value_is_validation_error(make_csv):
+# pyrefly: ignore [implicit-any-parameter]
+def test_negative_value_is_validation_error(make_csv) -> None:
     path = make_csv(
         "neg.csv",
         "Date,Vch/Bill No,Particulars,Item Details,Qty.,Unit,Price,Amount\n"
@@ -176,7 +186,8 @@ def test_negative_value_is_validation_error(make_csv):
         read_source(path, SourceKind.POV).collect()
 
 
-def test_missing_file_is_data_validation_error(tmp_path):
+# pyrefly: ignore [implicit-any-parameter]
+def test_missing_file_is_data_validation_error(tmp_path) -> None:
     with pytest.raises(DataValidationError):
         read_source(tmp_path / "ghost.csv", SourceKind.POV)
 

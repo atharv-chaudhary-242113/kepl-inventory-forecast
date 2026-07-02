@@ -125,7 +125,7 @@ def test_null_columns_reports_multiple_missing_columns() -> None:
     ]
 
 
-def test_null_columns_returns_empty_when_no_requested_columns_exist():
+def test_null_columns_returns_empty_when_no_requested_columns_exist() -> None:
     frame = pl.LazyFrame(
         {
             "price": [None, None],

@@ -19,7 +19,8 @@ from opstools.inventory_forecast.ingestion.schema import (
 
 
 @pytest.mark.parametrize("kind", [SourceKind.POV, SourceKind.GRN, SourceKind.PV])
-def test_ledger_kinds_are_ledgers(kind):
+# pyrefly: ignore [implicit-any-parameter]
+def test_ledger_kinds_are_ledgers(kind) -> None:
     assert schema.is_ledger(kind)
     assert schema.canonical_columns(kind) == [
         "date",
@@ -33,7 +34,7 @@ def test_ledger_kinds_are_ledgers(kind):
     ]
 
 
-def test_closing_stock_is_reduced_schema():
+def test_closing_stock_is_reduced_schema() -> None:
     assert not schema.is_ledger(SourceKind.CLOSING_STOCK)
     assert schema.required_erp_columns(SourceKind.CLOSING_STOCK) == [
         "Item Details",
@@ -49,7 +50,7 @@ def test_closing_stock_is_reduced_schema():
     ]
 
 
-def test_map_to_canonical_is_fuzzy_and_drops_extras():
+def test_map_to_canonical_is_fuzzy_and_drops_extras() -> None:
     table = pl.DataFrame(
         {
             " date ": ["2025-01-01"],
@@ -67,7 +68,7 @@ def test_map_to_canonical_is_fuzzy_and_drops_extras():
     assert out.columns == schema.canonical_columns(SourceKind.POV)
 
 
-def test_map_to_canonical_closing_stock_uses_reduced_mapping():
+def test_map_to_canonical_closing_stock_uses_reduced_mapping() -> None:
     table = pl.DataFrame(
         {
             "Item Details": ["Wire"],
@@ -82,7 +83,7 @@ def test_map_to_canonical_closing_stock_uses_reduced_mapping():
     assert out.columns == ["item", "qty", "price", "amount"]
 
 
-def test_map_to_canonical_missing_column_raises_missing_column_error():
+def test_map_to_canonical_missing_column_raises_missing_column_error() -> None:
     table = pl.DataFrame({"Date": ["2025-01-01"], "Particulars": ["ABC"]})
     with pytest.raises(MissingColumnError):
         schema.map_to_canonical(table, SourceKind.PV, "pv.csv")
@@ -93,7 +94,7 @@ def _ledger_frame(rows: dict[str, list[str | None]]) -> pl.DataFrame:
     return pl.DataFrame(rows, schema=dict.fromkeys(rows, pl.String))
 
 
-def test_finalize_ledger_happy_path_types_and_fill():
+def test_finalize_ledger_happy_path_types_and_fill() -> None:
     df = _ledger_frame(
         {
             "date": ["2025-01-05", None, "2025-01-20"],
@@ -120,7 +121,7 @@ def test_finalize_ledger_happy_path_types_and_fill():
     assert out["date"].to_list()[1] is None
 
 
-def test_finalize_drops_separator_rows():
+def test_finalize_drops_separator_rows() -> None:
     df = _ledger_frame(
         {
             "date": ["2025-01-05", None, None],
@@ -137,7 +138,7 @@ def test_finalize_drops_separator_rows():
     assert out.height == 2  # the all-empty separator row is removed
 
 
-def test_finalize_rejects_negative_quantity():
+def test_finalize_rejects_negative_quantity() -> None:
     df = _ledger_frame(
         {
             "date": ["2025-01-05"],
@@ -154,7 +155,7 @@ def test_finalize_rejects_negative_quantity():
         schema.finalize_records(df, SourceKind.POV, "pov.xlsx")
 
 
-def test_finalize_rejects_unparseable_amount():
+def test_finalize_rejects_unparseable_amount() -> None:
     df = _ledger_frame(
         {
             "date": ["2025-01-05"],
@@ -171,7 +172,7 @@ def test_finalize_rejects_unparseable_amount():
         schema.finalize_records(df, SourceKind.POV, "pov.xlsx")
 
 
-def test_finalize_rejects_unparseable_date():
+def test_finalize_rejects_unparseable_date() -> None:
     df = _ledger_frame(
         {
             "date": ["32-13-2025"],
@@ -188,7 +189,7 @@ def test_finalize_rejects_unparseable_date():
         schema.finalize_records(df, SourceKind.GRN, "grn.csv")
 
 
-def test_finalize_accepts_common_indian_date_format():
+def test_finalize_accepts_common_indian_date_format() -> None:
     df = _ledger_frame(
         {
             "date": ["05/01/2025"],
@@ -206,7 +207,7 @@ def test_finalize_accepts_common_indian_date_format():
     assert out["date"].dt.strftime("%Y-%m-%d").to_list() == ["2025-01-05"]
 
 
-def test_finalize_rejects_supplier_before_first_header():
+def test_finalize_rejects_supplier_before_first_header() -> None:
     # First row has no supplier and none precedes it -> nothing to forward-fill.
     df = _ledger_frame(
         {
@@ -224,7 +225,7 @@ def test_finalize_rejects_supplier_before_first_header():
         schema.finalize_records(df, SourceKind.POV, "pov.xlsx")
 
 
-def test_finalize_closing_stock_reduced_schema():
+def test_finalize_closing_stock_reduced_schema() -> None:
     df = pl.DataFrame(
         {
             "item": ["Wire", "Pipe"],
@@ -245,7 +246,7 @@ def test_finalize_closing_stock_reduced_schema():
     assert out["amount"].sum() == 35  # Decimal accumulation, not float
 
 
-def test_finalize_closing_stock_drops_empty_item_separator_rows():
+def test_finalize_closing_stock_drops_empty_item_separator_rows() -> None:
     df = pl.DataFrame(
         {
             "item": ["Wire", None],

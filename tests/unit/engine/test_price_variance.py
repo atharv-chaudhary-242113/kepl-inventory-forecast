@@ -19,6 +19,7 @@ _OUTPUT_COLUMNS = [
 ]
 
 
+# pyrefly: ignore [implicit-any-parameter]
 def test_aggregates_min_max_mean_range_per_item(ledger) -> None:
     """Min/max/mean and range come straight from the PV lines."""
     pv = ledger(
@@ -38,6 +39,7 @@ def test_aggregates_min_max_mean_range_per_item(ledger) -> None:
     assert row["price_range"] == Decimal("20.0000")
 
 
+# pyrefly: ignore [implicit-any-parameter]
 def test_price_columns_stay_decimal(ledger) -> None:
     """Money summaries are exact Decimal (no float currency)."""
     pv = ledger([(date(2025, 1, 1), "P1", "Acme", "Wire", 1.0, 10.0)])
@@ -47,6 +49,7 @@ def test_price_columns_stay_decimal(ledger) -> None:
         assert out.schema[col] == pl.Decimal(precision=38, scale=4)
 
 
+# pyrefly: ignore [implicit-any-parameter]
 def test_single_line_has_zero_stddev(ledger) -> None:
     """Sample std (ddof=1) is undefined for n=1; reported as 0.0."""
     pv = ledger([(date(2025, 1, 1), "P1", "Acme", "Wire", 1.0, 10.0)])
@@ -56,6 +59,7 @@ def test_single_line_has_zero_stddev(ledger) -> None:
     assert out.row(0, named=True)["price_range"] == Decimal("0.0000")
 
 
+# pyrefly: ignore [implicit-any-parameter]
 def test_stddev_is_positive_when_prices_differ(ledger) -> None:
     """A genuine price spread shows up as non-zero stddev."""
     pv = ledger(
@@ -68,6 +72,7 @@ def test_stddev_is_positive_when_prices_differ(ledger) -> None:
     assert out.row(0, named=True)["price_stddev"] > 0.0
 
 
+# pyrefly: ignore [implicit-any-parameter]
 def test_groups_supplier_and_item_independently(ledger) -> None:
     """The same item under two suppliers stays two rows."""
     pv = ledger(
@@ -81,11 +86,13 @@ def test_groups_supplier_and_item_independently(ledger) -> None:
     assert set(out["supplier"].to_list()) == {"Acme", "Globex"}
 
 
+# pyrefly: ignore [implicit-any-parameter]
 def test_price_variance_output_column_order_matches_contract(ledger) -> None:
     out = build_price_variance(ledger([])).collect()
     assert out.columns == _OUTPUT_COLUMNS
 
 
+# pyrefly: ignore [implicit-any-parameter]
 def test_price_variance_sorted_by_supplier_item(ledger) -> None:
     pv = ledger(
         [

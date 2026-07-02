@@ -6,25 +6,34 @@ from datetime import UTC, date, datetime
 from pathlib import Path
 
 import polars as pl
+from polars.lazyframe.frame import LazyFrame
 
 from opstools.inventory_forecast.config import (
     Settings,
 )
 from opstools.inventory_forecast.domain import WorkbookMeta
+from opstools.inventory_forecast.domain.models import WorkbookMeta
 from opstools.inventory_forecast.engine import (
     EngineOutput,
 )
 from opstools.inventory_forecast.services.pipeline_service import (
+    # pyrefly: ignore [missing-module-attribute]
     PipelineResult,
+    # pyrefly: ignore [missing-module-attribute]
     PipelineService,
+    # pyrefly: ignore [missing-module-attribute]
     build_workbook_metadata,
 )
 from opstools.inventory_forecast.services.state import (
+    # pyrefly: ignore [missing-module-attribute]
     PipelineProgress,
+    # pyrefly: ignore [missing-module-attribute]
     PipelineRequest,
+    # pyrefly: ignore [missing-module-attribute]
     PipelineStage,
 )
 from opstools.inventory_forecast.workbook.cache import (
+    # pyrefly: ignore [missing-module-attribute]
     DashboardCache,
 )
 
@@ -93,6 +102,7 @@ def test_build_cache_contains_expected_datasets() -> None:
 
 
 def test_export_workbook_returns_pipeline_result(
+    # pyrefly: ignore [implicit-any-parameter]
     monkeypatch,
     tmp_path: Path,
 ) -> None:
@@ -129,6 +139,7 @@ def test_export_workbook_returns_pipeline_result(
         processing_time_seconds=1.0,
     )
 
+    # pyrefly: ignore [implicit-any-parameter]
     def _save_workbook(**kwargs) -> None:
         return None
 
@@ -221,6 +232,7 @@ def test_build_workbook_metadata_handles_missing_item_column() -> None:
 
 
 def test_run_pipeline_success_path(
+    # pyrefly: ignore [implicit-any-parameter]
     monkeypatch,
     tmp_path: Path,
 ) -> None:
@@ -267,13 +279,13 @@ def test_run_pipeline_success_path(
         cache=cache,
     )
 
-    def _read_source(_path, _kind):
+    def _read_source(_path, _kind) -> LazyFrame:
         return frame.lazy()
 
     def _run_engine(**_kwargs):
         return engine_output
 
-    def _build_metadata(**_kwargs):
+    def _build_metadata(**_kwargs) -> WorkbookMeta:
         return metadata
 
     def _export_workbook(**_kwargs):
@@ -300,6 +312,7 @@ def test_run_pipeline_success_path(
         staticmethod(_export_workbook),
     )
 
+    # pyrefly: ignore [implicit-any-type-argument]
     progress_events: list = []
 
     request = PipelineRequest(

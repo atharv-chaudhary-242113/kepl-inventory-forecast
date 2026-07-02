@@ -213,19 +213,29 @@ class TrendDirection(StrEnum):
 class WorksheetName(StrEnum):
     """Name of the worksheet."""
 
+    # Core Layout
     METADATA = "Metadata"
-    DEMAND_HISTORY = "Demand_History"
-    FORECASTS = "Forecasts"
+    EXECUTIVE_SUMMARY = "Executive_Summary"
+    DASHBOARD_DATA = "Dashboard_Data"
+    CURRENT_DEMAND = "Current_Demand"
+    INVENTORY_HEALTH = "Inventory_Health"
+    PROCUREMENT_INSIGHTS = "Procurement_Insights"
     SUPPLIER_ANALYSIS = "Supplier_Analysis"
-    SUPPLIER_PARTNERSHIPS = "Supplier_Partnerships"
-    LEAD_TIME_ANALYSIS = "Lead_Time_Analysis"
+    SUPPLIER_SUMMARY = "Supplier_Summary"
+    SUPPLIER_RISK = "Supplier_Risk"
+    SOURCING_RISK = "Sourcing_Risk"
+    LEAD_TIME = "Lead_Time"
     PENDING_DELIVERIES = "Pending_Deliveries"
     FINANCIAL_SUMMARY = "Financial_Summary"
+    INVENTORY_VALUATION = "Inventory_Valuation"
     ABC_CLASSIFICATION = "ABC_Classification"
     SBC_CLASSIFICATION = "SBC_Classification"
-    INVENTORY_VALUATION = "Inventory_Valuation"
-
-    PORTFOLIO_ANALYSIS = "Portfolio_Analysis"
-    SUPPLIER_SUMMARY = "Supplier_Summary"
     FORECAST_READINESS = "Forecast_Readiness"
+    FORECASTS = "Forecasts"
     DASHBOARD_CACHE = "Dashboard_Cache"
+
+    # Preserved for backward compatibility / existing logic
+    DEMAND_HISTORY = "Demand_History"
+    SUPPLIER_PARTNERSHIPS = "Supplier_Partnerships"
+    LEAD_TIME_ANALYSIS = "Lead_Time_Analysis"
+    PORTFOLIO_ANALYSIS = "Portfolio_Analysis"

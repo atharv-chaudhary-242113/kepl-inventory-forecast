@@ -8,6 +8,7 @@ import polars as pl
 from opstools.inventory_forecast.engine import reconstruct_demand
 
 
+# pyrefly: ignore [implicit-any-parameter]
 def test_same_month_pov_rows_are_aggregated(ledger) -> None:
     """Same supplier+item+month collapses into one demand-history row."""
     pov = ledger(
@@ -30,6 +31,7 @@ def test_same_month_pov_rows_are_aggregated(ledger) -> None:
     assert row["demand_value"] == Decimal("148.0000")
 
 
+# pyrefly: ignore [implicit-any-parameter]
 def test_truncates_dates_to_month_start(ledger) -> None:
     """Transactions in the same month truncate to one month-start period."""
     pov = ledger(
@@ -50,6 +52,7 @@ def test_truncates_dates_to_month_start(ledger) -> None:
     assert row["demand_value"] == Decimal("120.0000")
 
 
+# pyrefly: ignore [implicit-any-parameter]
 def test_separate_months_stay_distinct(ledger) -> None:
     """Different months must remain separate demand periods."""
     pov = ledger(
@@ -72,6 +75,7 @@ def test_separate_months_stay_distinct(ledger) -> None:
     ]
 
 
+# pyrefly: ignore [implicit-any-parameter]
 def test_different_suppliers_remain_distinct(ledger) -> None:
     """Supplier is part of the grouping key and must not be merged."""
     pov = ledger(
@@ -91,6 +95,7 @@ def test_different_suppliers_remain_distinct(ledger) -> None:
     }
 
 
+# pyrefly: ignore [implicit-any-parameter]
 def test_different_items_remain_distinct(ledger) -> None:
     """Item is part of the grouping key and must not be merged."""
     pov = ledger(
@@ -110,6 +115,7 @@ def test_different_items_remain_distinct(ledger) -> None:
     }
 
 
+# pyrefly: ignore [implicit-any-parameter]
 def test_null_dated_rows_are_dropped(ledger) -> None:
     """Rows without dates cannot participate in a forecasting time series."""
     pov = ledger(
@@ -129,6 +135,7 @@ def test_null_dated_rows_are_dropped(ledger) -> None:
     assert row["demand_value"] == Decimal("20.0000")
 
 
+# pyrefly: ignore [implicit-any-parameter]
 def test_demand_value_dtype_is_decimal(ledger) -> None:
     """Demand value accumulation must remain Decimal-exact."""
     pov = ledger(
@@ -145,6 +152,7 @@ def test_demand_value_dtype_is_decimal(ledger) -> None:
     )
 
 
+# pyrefly: ignore [implicit-any-parameter]
 def test_output_column_order_matches_contract(ledger) -> None:
     """Output schema must match the Demand_History workbook contract."""
     pov = ledger(
@@ -164,6 +172,7 @@ def test_output_column_order_matches_contract(ledger) -> None:
     ]
 
 
+# pyrefly: ignore [implicit-any-parameter]
 def test_empty_pov_returns_empty_contract_frame(ledger) -> None:
     """No POV rows yields the Demand_History contract with zero rows."""
     out = reconstruct_demand(ledger([])).collect()

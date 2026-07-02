@@ -10,6 +10,7 @@ from opstools.inventory_forecast.engine import build_inventory_valuation
 _SNAP = date(2025, 3, 31)
 
 
+# pyrefly: ignore [implicit-any-parameter]
 def test_values_stock_at_pv_unit_cost(ledger, closing) -> None:
     """Items priced by PV use the value-weighted PV unit cost."""
     stock = closing([("Wire", 10.0, 99.0)])  # closing price is fallback only
@@ -27,6 +28,7 @@ def test_values_stock_at_pv_unit_cost(ledger, closing) -> None:
     assert row["inventory_value"] == Decimal("106.0000")
 
 
+# pyrefly: ignore [implicit-any-parameter]
 def test_falls_back_to_closing_price_when_pv_absent(ledger, closing) -> None:
     """An item PV never priced is valued at its closing-stock price."""
     stock = closing([("Bolt", 5.0, 9.9)])
@@ -39,6 +41,7 @@ def test_falls_back_to_closing_price_when_pv_absent(ledger, closing) -> None:
     assert row["inventory_value"] == Decimal("49.5000")
 
 
+# pyrefly: ignore [implicit-any-parameter]
 def test_snapshot_date_is_stamped_explicitly(ledger, closing) -> None:
     """The passed snapshot_date lands on every row as a Date, not from data."""
     stock = closing([("Wire", 1.0, 5.0), ("Bolt", 2.0, 3.0)])
@@ -50,6 +53,7 @@ def test_snapshot_date_is_stamped_explicitly(ledger, closing) -> None:
     assert out["snapshot_date"].to_list() == [_SNAP, _SNAP]
 
 
+# pyrefly: ignore [implicit-any-parameter]
 def test_inventory_value_dtype_is_decimal(ledger, closing) -> None:
     """Valuation arithmetic stays Decimal-exact (no float currency)."""
     stock = closing([("Wire", 3.0, 2.5)])
@@ -61,6 +65,7 @@ def test_inventory_value_dtype_is_decimal(ledger, closing) -> None:
     assert out.row(0, named=True)["inventory_value"] == Decimal("7.5000")
 
 
+# pyrefly: ignore [implicit-any-parameter]
 def test_zero_quantity_pv_group_does_not_price_item(ledger, closing) -> None:
     """A PV group with zero qty cannot define a unit cost; closing price wins."""
     stock = closing([("Wire", 4.0, 8.0)])
@@ -71,6 +76,7 @@ def test_zero_quantity_pv_group_does_not_price_item(ledger, closing) -> None:
     assert out.row(0, named=True)["unit_cost"] == Decimal("8.0000")
 
 
+# pyrefly: ignore [implicit-any-parameter]
 def test_valuation_output_column_order_matches_contract(ledger, closing) -> None:
     """Schema must equal the Inventory_Valuation sheet column order."""
     stock = closing([("Wire", 1.0, 1.0)])
@@ -87,6 +93,7 @@ def test_valuation_output_column_order_matches_contract(ledger, closing) -> None
     ]
 
 
+# pyrefly: ignore [implicit-any-parameter]
 def test_valuation_rows_are_sorted_by_item(ledger, closing) -> None:
     """The valuation frame is deterministic by item name."""
     stock = closing([("Wire", 1.0, 1.0), ("Bolt", 1.0, 1.0)])

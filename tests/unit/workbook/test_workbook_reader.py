@@ -17,11 +17,16 @@ from opstools.inventory_forecast.domain import (
 
 # noinspection PyProtectedMember
 from opstools.inventory_forecast.workbook.reader import (
+    # pyrefly: ignore [missing-module-attribute]
     _validate_workbook_path,
+    # pyrefly: ignore [missing-module-attribute]
     load_dashboard_state,
+    # pyrefly: ignore [missing-module-attribute]
     read_cache,
+    # pyrefly: ignore [missing-module-attribute]
     read_metadata,
     read_worksheet,
+    # pyrefly: ignore [missing-module-attribute]
     validate_workbook_completeness,
 )
 from opstools.inventory_forecast.workbook.schema import required_sheet_names
@@ -159,9 +164,13 @@ def test_validate_workbook_completeness_wraps_open_failure(
 @patch("opstools.inventory_forecast.workbook.reader.validate_workbook_completeness")
 @patch("opstools.inventory_forecast.workbook.reader._validate_workbook_path")
 def test_load_dashboard_state(
+    # pyrefly: ignore [implicit-any-parameter]
     mock_validate_workbook_path,
+    # pyrefly: ignore [implicit-any-parameter]
     mock_validate_workbook_completeness,
+    # pyrefly: ignore [implicit-any-parameter]
     mock_read_metadata,
+    # pyrefly: ignore [implicit-any-parameter]
     mock_read_cache,
 ) -> None:
     metadata = Mock()

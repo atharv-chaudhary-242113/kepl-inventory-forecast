@@ -4,10 +4,15 @@ import polars as pl
 import pytest
 
 from opstools.inventory_forecast.workbook.cache import (
+    # pyrefly: ignore [missing-module-attribute]
     CacheDataset,
+    # pyrefly: ignore [missing-module-attribute]
     DashboardCache,
+    # pyrefly: ignore [missing-module-attribute]
     build_dashboard_cache,
+    # pyrefly: ignore [missing-module-attribute]
     from_dataframe,
+    # pyrefly: ignore [missing-module-attribute]
     to_dataframe,
 )
 

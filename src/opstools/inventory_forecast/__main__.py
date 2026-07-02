@@ -9,16 +9,6 @@ This module intentionally contains no business logic.
 
 from __future__ import annotations
 
-from pathlib import Path
-
-from opstools.inventory_forecast.config import Settings
-from opstools.inventory_forecast.services.pipeline_service import (
-    PipelineService,
-)
-from opstools.inventory_forecast.services.state import (
-    PipelineRequest,
-)
-
 
 def main() -> int:
     """Execute a pipeline run from the command line.

@@ -15,7 +15,7 @@ from opstools.inventory_forecast.domain import (
 )
 
 
-def test_enum_string_values():
+def test_enum_string_values() -> None:
     assert SourceKind.POV == "pov"
     assert SourceKind.GRN == "grn"
     assert SourceKind.PV == "pv"

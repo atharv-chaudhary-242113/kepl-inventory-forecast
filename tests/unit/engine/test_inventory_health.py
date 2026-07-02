@@ -43,6 +43,7 @@ def _demand_lf(rows: list[tuple[str, str, date, float]]) -> pl.LazyFrame:
     )
 
 
+# pyrefly: ignore [implicit-any-parameter]
 def test_dead_stock_when_stock_held_but_no_demand(ledger, closing) -> None:
     """Stock on hand with zero demand -> dead_stock."""
     stock = closing([("Wire", 50.0, 10.0)])
@@ -56,6 +57,7 @@ def test_dead_stock_when_stock_held_but_no_demand(ledger, closing) -> None:
     assert row["months_of_cover"] is None
 
 
+# pyrefly: ignore [implicit-any-parameter]
 def test_low_stock_when_cover_below_threshold(ledger, closing) -> None:
     """Cover < 1 month -> low_stock."""
     stock = closing([("Wire", 5.0, 10.0)])  # 5 units on hand
@@ -74,6 +76,7 @@ def test_low_stock_when_cover_below_threshold(ledger, closing) -> None:
     assert row["months_of_cover"] == 0.1
 
 
+# pyrefly: ignore [implicit-any-parameter]
 def test_overstocked_when_cover_above_threshold(ledger, closing) -> None:
     """Cover > 12 months -> overstocked + non-zero excess value."""
     stock = closing([("Wire", 1300.0, 10.0)])
@@ -93,6 +96,7 @@ def test_overstocked_when_cover_above_threshold(ledger, closing) -> None:
     assert row["excess_inventory_value"] == Decimal("10000.0000")
 
 
+# pyrefly: ignore [implicit-any-parameter]
 def test_healthy_when_cover_in_normal_range(ledger, closing) -> None:
     """1 <= cover <= 12 months -> healthy."""
     stock = closing([("Wire", 300.0, 10.0)])  # 3 months
@@ -109,6 +113,7 @@ def test_healthy_when_cover_in_normal_range(ledger, closing) -> None:
     assert row["status"] == InventoryStatus.HEALTHY.value
 
 
+# pyrefly: ignore [implicit-any-parameter]
 def test_excess_value_is_decimal_and_never_negative(ledger, closing) -> None:
     """Excess at/below target -> 0; arithmetic stays Decimal."""
     stock = closing([("Wire", 100.0, 10.0)])  # 1 month cover, below target
@@ -125,6 +130,7 @@ def test_excess_value_is_decimal_and_never_negative(ledger, closing) -> None:
     assert out.row(0, named=True)["excess_inventory_value"] == Decimal("0.0000")
 
 
+# pyrefly: ignore [implicit-any-parameter]
 def test_avg_demand_pools_across_suppliers(ledger, closing) -> None:
     """Item-wide demand sums each month across suppliers before averaging."""
     stock = closing([("Wire", 100.0, 1.0)])
@@ -145,6 +151,7 @@ def test_avg_demand_pools_across_suppliers(ledger, closing) -> None:
     assert row["months_of_cover"] == 1.0
 
 
+# pyrefly: ignore [implicit-any-parameter]
 def test_health_output_column_order_matches_contract(ledger, closing) -> None:
     val = build_inventory_valuation(closing([]), ledger([]), _SNAP)
     out = build_inventory_health(val, reconstruct_demand(ledger([]))).collect()

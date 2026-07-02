@@ -9,7 +9,7 @@ from opstools.inventory_forecast.config import Settings
 from opstools.inventory_forecast.domain import ForecastGranularity
 
 
-def test_defaults_match_documented_values():
+def test_defaults_match_documented_values() -> None:
     s = Settings()
     assert s.forecast_horizon == 12
     assert s.forecast_granularity is ForecastGranularity.MONTHLY
@@ -22,7 +22,7 @@ def test_defaults_match_documented_values():
     assert s.enable_partnerships is True
 
 
-def test_custom_settings_are_preserved():
+def test_custom_settings_are_preserved() -> None:
     s = Settings(
         forecast_horizon=6,
         forecast_granularity=ForecastGranularity.QUARTERLY,
@@ -46,27 +46,29 @@ def test_custom_settings_are_preserved():
     assert s.enable_partnerships is False
 
 
-def test_horizon_must_be_positive():
+def test_horizon_must_be_positive() -> None:
     with pytest.raises(ValidationError):
+        # pyrefly: ignore [bad-argument-type]
         Settings(forecast_horizon=0)
 
 
-def test_service_z_must_be_positive():
+def test_service_z_must_be_positive() -> None:
     with pytest.raises(ValidationError):
         Settings(service_z=0.0)
 
 
-def test_default_lead_time_days_must_be_positive():
+def test_default_lead_time_days_must_be_positive() -> None:
     with pytest.raises(ValidationError):
+        # pyrefly: ignore [bad-argument-type]
         Settings(default_lead_time_days=0)
 
 
-def test_freight_rate_may_not_be_negative():
+def test_freight_rate_may_not_be_negative() -> None:
     with pytest.raises(ValidationError):
         Settings(freight_rate=Decimal("-0.01"))
 
 
-def test_abc_thresholds_must_be_inside_unit_interval():
+def test_abc_thresholds_must_be_inside_unit_interval() -> None:
     with pytest.raises(ValidationError):
         Settings(abc_a_threshold=0.0)
 
@@ -74,12 +76,13 @@ def test_abc_thresholds_must_be_inside_unit_interval():
         Settings(abc_b_threshold=1.0)
 
 
-def test_abc_thresholds_must_be_ordered():
+def test_abc_thresholds_must_be_ordered() -> None:
     with pytest.raises(ValidationError):
         Settings(abc_a_threshold=0.9, abc_b_threshold=0.8)
 
 
-def test_settings_are_frozen():
+def test_settings_are_frozen() -> None:
     s = Settings()
     with pytest.raises(ValidationError):
+        # pyrefly: ignore [read-only]
         s.forecast_horizon = 24

@@ -33,6 +33,7 @@ def _demand(rows: list[tuple[str, str, date, float]]) -> pl.LazyFrame:
 # --- ABC ------------------------------------------------------------------
 
 
+# pyrefly: ignore [implicit-any-parameter]
 def test_abc_bands_split_by_cumulative_value(ledger) -> None:
     """Items fall into A/B/C by where their cumulative value share sits."""
     cfg = Settings()
@@ -52,6 +53,7 @@ def test_abc_bands_split_by_cumulative_value(ledger) -> None:
     assert by_item["Low"]["abc_class"] == AbcClass.C.value
 
 
+# pyrefly: ignore [implicit-any-parameter]
 def test_abc_annual_value_stays_decimal_and_aggregates(ledger) -> None:
     """Per-item value is the exact Decimal sum across PV lines."""
     pv = ledger(
@@ -66,6 +68,7 @@ def test_abc_annual_value_stays_decimal_and_aggregates(ledger) -> None:
     assert out.row(0, named=True)["annual_value"] == Decimal("150.0000")
 
 
+# pyrefly: ignore [implicit-any-parameter]
 def test_abc_cumulative_percentage_is_monotonic(ledger) -> None:
     """The cumulative curve climbs to 1.0 at the last (lowest-value) item."""
     pv = ledger(
@@ -82,6 +85,7 @@ def test_abc_cumulative_percentage_is_monotonic(ledger) -> None:
     assert abs(cum[-1] - 1.0) < 1e-9
 
 
+# pyrefly: ignore [implicit-any-parameter]
 def test_abc_respects_configured_thresholds(ledger) -> None:
     """Custom cut-points move the band boundaries."""
     cfg = Settings(abc_a_threshold=0.5, abc_b_threshold=0.9)
@@ -99,6 +103,7 @@ def test_abc_respects_configured_thresholds(ledger) -> None:
     assert by_item["Low"] == AbcClass.C.value
 
 
+# pyrefly: ignore [implicit-any-parameter]
 def test_abc_empty_input_returns_contract_columns(ledger) -> None:
     """No PV rows yields an empty ABC frame with the sheet contract."""
     out = build_abc_classification(ledger([]), Settings()).collect()

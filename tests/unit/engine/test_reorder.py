@@ -20,6 +20,7 @@ _OUTPUT_COLUMNS = [
 ]
 
 
+# pyrefly: ignore [implicit-any-parameter]
 def test_formula_matches_documented_definition(ledger) -> None:
     """reorder = avg*LT + z*std*sqrt(LT) within float tolerance."""
     pov = ledger(
@@ -46,6 +47,7 @@ def test_formula_matches_documented_definition(ledger) -> None:
     assert abs(row["reorder_point"] - expected) < 1e-6
 
 
+# pyrefly: ignore [implicit-any-parameter]
 def test_falls_back_to_default_lead_time(ledger) -> None:
     """No observed lead time -> cfg.default_lead_time_days / 30 months."""
     pov = ledger(
@@ -64,6 +66,7 @@ def test_falls_back_to_default_lead_time(ledger) -> None:
     assert out.row(0, named=True)["lead_time_months"] == 2.0  # 60 / 30
 
 
+# pyrefly: ignore [implicit-any-parameter]
 def test_single_observation_zero_std(ledger) -> None:
     """One demand month -> demand_std = 0 (sample std is undefined, treated as 0)."""
     pov = ledger([(date(2025, 1, 1), "O1", "Acme", "Wire", 5.0, 50.0)])
@@ -82,6 +85,7 @@ def test_single_observation_zero_std(ledger) -> None:
     )
 
 
+# pyrefly: ignore [implicit-any-parameter]
 def test_higher_service_z_increases_reorder(ledger) -> None:
     """A higher service level demands more safety stock."""
     pov = ledger(
@@ -107,6 +111,7 @@ def test_higher_service_z_increases_reorder(ledger) -> None:
     )
 
 
+# pyrefly: ignore [implicit-any-parameter]
 def test_reorder_output_column_order_matches_contract(ledger) -> None:
     out = build_reorder_recommendations(
         reconstruct_demand(ledger([])),

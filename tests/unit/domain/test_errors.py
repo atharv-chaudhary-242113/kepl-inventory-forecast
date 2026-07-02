@@ -22,23 +22,24 @@ from opstools.inventory_forecast.domain import (
         WorkbookError,
     ],
 )
-def test_all_domain_errors_inherit_base(subclass):
+# pyrefly: ignore [implicit-any-parameter]
+def test_all_domain_errors_inherit_base(subclass) -> None:
     # API_CONTRACT.md: anything raised across a boundary must be catchable as
     # the single base type, so services can translate uniformly.
     assert issubclass(subclass, InventoryForecastError)
 
 
-def test_specific_errors_inherit_their_category_base():
+def test_specific_errors_inherit_their_category_base() -> None:
     assert issubclass(MissingColumnError, DataValidationError)
     assert issubclass(InvalidSchemaError, DataValidationError)
     assert issubclass(ForecastingError, InventoryForecastError)
     assert issubclass(WorkbookError, InventoryForecastError)
 
 
-def test_base_is_an_exception():
+def test_base_is_an_exception() -> None:
     assert issubclass(InventoryForecastError, Exception)
 
 
-def test_subclass_is_catchable_as_base():
+def test_subclass_is_catchable_as_base() -> None:
     with pytest.raises(InventoryForecastError):
         raise InvalidSchemaError("header row not found in pov_2024.xlsx")

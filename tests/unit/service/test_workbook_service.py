@@ -16,17 +16,20 @@ from opstools.inventory_forecast.services.workbook_service import (
     WorkbookService,
 )
 from opstools.inventory_forecast.workbook.cache import (
+    # pyrefly: ignore [missing-module-attribute]
     DashboardCache,
 )
 
 
 def test_save_workbook_delegates_to_writer(
+    # pyrefly: ignore [implicit-any-parameter]
     monkeypatch,
     tmp_path: Path,
 ) -> None:
     """save_workbook should delegate to write_workbook."""
     captured: dict[str, object] = {}
 
+    # pyrefly: ignore [implicit-any-parameter]
     def _write_workbook(**kwargs) -> None:
         captured.update(kwargs)
 
@@ -70,6 +73,7 @@ def test_save_workbook_delegates_to_writer(
 
 
 def test_validate_workbook_delegates_to_validator(
+    # pyrefly: ignore [implicit-any-parameter]
     monkeypatch,
     tmp_path: Path,
 ) -> None:
@@ -94,6 +98,7 @@ def test_validate_workbook_delegates_to_validator(
 
 
 def test_load_dashboard_state_validates_before_loading(
+    # pyrefly: ignore [implicit-any-parameter]
     monkeypatch,
     tmp_path: Path,
 ) -> None:
@@ -103,10 +108,11 @@ def test_load_dashboard_state_validates_before_loading(
     def _validate(path: Path) -> None:
         call_order.append("validate")
 
-    def _reader(path: Path):
+    def _reader(path: Path) -> tuple[str, str]:
         call_order.append("reader")
         return "metadata", "cache"
 
+    # pyrefly: ignore [implicit-any-parameter]
     def _builder(metadata, cache):
         call_order.append("builder")
         return {

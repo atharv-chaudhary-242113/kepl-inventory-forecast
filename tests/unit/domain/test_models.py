@@ -27,7 +27,7 @@ from opstools.inventory_forecast.domain import (
 )
 
 
-def test_source_set_iter_with_kind_pairs_paths_to_kinds():
+def test_source_set_iter_with_kind_pairs_paths_to_kinds() -> None:
     sources = SourceSet(
         pov=(Path("pov_2024.xlsx"),),
         grn=(Path("grn_2024.xlsx"),),
@@ -44,20 +44,21 @@ def test_source_set_iter_with_kind_pairs_paths_to_kinds():
     assert sources.all_paths == tuple(p for p, _ in pairs)
 
 
-def test_source_set_is_frozen():
+def test_source_set_is_frozen() -> None:
     sources = SourceSet()
     with pytest.raises(ValidationError):
+        # pyrefly: ignore [read-only]
         sources.pov = (Path("x.xlsx"),)  # frozen model => assignment rejected
 
 
-def test_empty_source_set_yields_no_paths():
+def test_empty_source_set_yields_no_paths() -> None:
     sources = SourceSet()
 
     assert list(sources.iter_with_kind()) == []
     assert sources.all_paths == ()
 
 
-def test_workbook_meta_holds_documented_fields():
+def test_workbook_meta_holds_documented_fields() -> None:
     meta = WorkbookMeta(
         schema_version="1.0.0",
         application_version="0.1.0",
@@ -72,12 +73,13 @@ def test_workbook_meta_holds_documented_fields():
     assert meta.total_items == 42
 
 
-def test_workbook_meta_rejects_nonpositive_horizon():
+def test_workbook_meta_rejects_nonpositive_horizon() -> None:
     with pytest.raises(ValidationError):
         WorkbookMeta(
             schema_version="1.0.0",
             application_version="0.1.0",
             generated_at=datetime(2026, 1, 1),
+            # pyrefly: ignore [bad-argument-type]
             forecast_horizon=0,
             total_suppliers=3,
             total_items=42,
@@ -86,13 +88,14 @@ def test_workbook_meta_rejects_nonpositive_horizon():
         )
 
 
-def test_workbook_meta_rejects_negative_counts():
+def test_workbook_meta_rejects_negative_counts() -> None:
     with pytest.raises(ValidationError):
         WorkbookMeta(
             schema_version="1.0.0",
             application_version="0.1.0",
             generated_at=datetime(2026, 1, 1),
             forecast_horizon=12,
+            # pyrefly: ignore [bad-argument-type]
             total_suppliers=-1,
             total_items=42,
             total_records=1000,
@@ -100,7 +103,7 @@ def test_workbook_meta_rejects_negative_counts():
         )
 
 
-def test_demand_characteristics_rejects_nonpositive_history_length():
+def test_demand_characteristics_rejects_nonpositive_history_length() -> None:
     with pytest.raises(ValueError, match="history_length"):
         DemandCharacteristics(
             item_id="A",
@@ -114,7 +117,7 @@ def test_demand_characteristics_rejects_nonpositive_history_length():
         )
 
 
-def test_demand_characteristics_rejects_negative_adi():
+def test_demand_characteristics_rejects_negative_adi() -> None:
     with pytest.raises(ValueError, match="adi"):
         DemandCharacteristics(
             item_id="A",
@@ -128,7 +131,7 @@ def test_demand_characteristics_rejects_negative_adi():
         )
 
 
-def test_demand_characteristics_rejects_negative_cv2():
+def test_demand_characteristics_rejects_negative_cv2() -> None:
     with pytest.raises(ValueError, match="cv2"):
         DemandCharacteristics(
             item_id="A",
@@ -142,7 +145,7 @@ def test_demand_characteristics_rejects_negative_cv2():
         )
 
 
-def test_demand_characteristics_rejects_invalid_zero_ratio():
+def test_demand_characteristics_rejects_invalid_zero_ratio() -> None:
     with pytest.raises(ValueError, match="zero_demand_ratio"):
         DemandCharacteristics(
             item_id="A",
@@ -156,7 +159,7 @@ def test_demand_characteristics_rejects_invalid_zero_ratio():
         )
 
 
-def test_demand_observation_rejects_negative_quantity():
+def test_demand_observation_rejects_negative_quantity() -> None:
     with pytest.raises(ValueError, match="quantity"):
         DemandObservation(
             item_id="A",
@@ -165,7 +168,7 @@ def test_demand_observation_rejects_negative_quantity():
         )
 
 
-def test_forecast_request_rejects_nonpositive_horizon():
+def test_forecast_request_rejects_nonpositive_horizon() -> None:
     with pytest.raises(ValueError, match="horizon"):
         ForecastRequest(
             item_id="A",
@@ -175,7 +178,7 @@ def test_forecast_request_rejects_nonpositive_horizon():
         )
 
 
-def test_forecast_request_rejects_nonpositive_seasonality():
+def test_forecast_request_rejects_nonpositive_seasonality() -> None:
     with pytest.raises(ValueError, match="seasonality"):
         ForecastRequest(
             item_id="A",
@@ -185,7 +188,7 @@ def test_forecast_request_rejects_nonpositive_seasonality():
         )
 
 
-def test_forecast_request_rejects_invalid_service_level():
+def test_forecast_request_rejects_invalid_service_level() -> None:
     with pytest.raises(ValueError, match="service_level"):
         ForecastRequest(
             item_id="A",
@@ -205,7 +208,8 @@ def test_forecast_request_rejects_invalid_service_level():
         ("Observation count", {"observation_count": 0}),
     ],
 )
-def test_forecast_metrics_reject_invalid_values(field, kwargs):
+# pyrefly: ignore [implicit-any-parameter]
+def test_forecast_metrics_reject_invalid_values(field, kwargs) -> None:
     payload = {
         "mase": 1,
         "rmsse": 1,
@@ -221,7 +225,7 @@ def test_forecast_metrics_reject_invalid_values(field, kwargs):
         ForecastMetrics(**payload)
 
 
-def _metrics():
+def _metrics() -> ForecastMetrics:
     return ForecastMetrics(
         mase=1,
         rmsse=1,
@@ -232,7 +236,7 @@ def _metrics():
     )
 
 
-def test_forecast_result_rejects_empty_forecasts():
+def test_forecast_result_rejects_empty_forecasts() -> None:
     with pytest.raises(ValueError, match="forecast_values"):
         ForecastResult(
             item_id="A",
@@ -247,7 +251,7 @@ def test_forecast_result_rejects_empty_forecasts():
         )
 
 
-def test_forecast_result_rejects_lower_bound_length_mismatch():
+def test_forecast_result_rejects_lower_bound_length_mismatch() -> None:
     with pytest.raises(ValueError, match="lower_bound"):
         ForecastResult(
             item_id="A",
@@ -262,7 +266,7 @@ def test_forecast_result_rejects_lower_bound_length_mismatch():
         )
 
 
-def test_forecast_result_rejects_upper_bound_length_mismatch():
+def test_forecast_result_rejects_upper_bound_length_mismatch() -> None:
     with pytest.raises(ValueError, match="upper_bound"):
         ForecastResult(
             item_id="A",
@@ -277,7 +281,7 @@ def test_forecast_result_rejects_upper_bound_length_mismatch():
         )
 
 
-def test_supplier_risk_requires_positive_supplier_count():
+def test_supplier_risk_requires_positive_supplier_count() -> None:
     with pytest.raises(ValueError, match="supplier_count"):
         SupplierRisk(
             supplier_id="S1",
@@ -296,7 +300,8 @@ def test_supplier_risk_requires_positive_supplier_count():
         {"replenishment_quantity": -1},
     ],
 )
-def test_replenishment_rejects_negative_values(kwargs):
+# pyrefly: ignore [implicit-any-parameter]
+def test_replenishment_rejects_negative_values(kwargs) -> None:
     payload = {
         "item_id": "A",
         "baseline_stock_level": 1,
@@ -310,7 +315,7 @@ def test_replenishment_rejects_negative_values(kwargs):
         ReplenishmentRecommendation(**payload)
 
 
-def test_inventory_health_rejects_negative_months_of_cover():
+def test_inventory_health_rejects_negative_months_of_cover() -> None:
     with pytest.raises(ValueError, match="months_of_cover"):
         InventoryHealthReport(
             item_id="A",
@@ -320,7 +325,7 @@ def test_inventory_health_rejects_negative_months_of_cover():
         )
 
 
-def test_inventory_health_rejects_negative_excess_inventory():
+def test_inventory_health_rejects_negative_excess_inventory() -> None:
     with pytest.raises(ValueError, match="excess_inventory_value"):
         InventoryHealthReport(
             item_id="A",

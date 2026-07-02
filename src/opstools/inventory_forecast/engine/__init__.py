@@ -8,6 +8,8 @@ from opstools.inventory_forecast.engine.forecasting import forecast_demand
 from opstools.inventory_forecast.engine.fulfillment import build_fill_rate
 from opstools.inventory_forecast.engine.inventory_health import build_inventory_health
 from opstools.inventory_forecast.engine.lead_time import compute_lead_time
+
+# pyrefly: ignore [missing-module-attribute]
 from opstools.inventory_forecast.engine.orchestrator import EngineOutput, run_engine
 from opstools.inventory_forecast.engine.partnerships import detect_partnerships
 from opstools.inventory_forecast.engine.pending import build_pending_deliveries

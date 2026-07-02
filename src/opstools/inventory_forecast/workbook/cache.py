@@ -1,163 +1,88 @@
-"""Dashboard cache model and serialization.
+"""Dashboard cache state management.
 
-The dashboard cache stores materialized analytical datasets that can be
-written to and reconstructed from the Dashboard_Cache worksheet.
-
-This cache is not a runtime cache. It is a workbook persistence layer
-used to avoid recomputing expensive dashboard aggregations after a
-workbook has been exported.
-
-The workbook schema intentionally leaves Dashboard_Cache unconstrained.
-This module therefore owns the serialization contract.
+Handles the serialization and deserialization of BI dashboard state
+into the workbook's Dashboard_Cache sheet. While the primary GUI
+is excluded from the core engine, this module preserves the contract
+for future Plotly/Dash state persistence (e.g., user filter selections,
+sort orders, or active tabs) directly within the single source of truth.
 """
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+import json
+import logging
+from typing import Any
 
 import polars as pl
 
-_DATASET_COLUMN = "__dataset__"
+from opstools.inventory_forecast.workbook.schema import (
+    WorksheetName,
+    get_sheet_schema,
+)
+
+logger = logging.getLogger(__name__)
 
 
-@dataclass(frozen=True, slots=True)
-class CacheDataset:
-    """Named dashboard dataset.
+def build_dashboard_cache_df(state: dict[str, Any] | None = None) -> pl.DataFrame:
+    """Serialize dashboard visualization state into a DataFrame.
 
-    Parameters
-    ----------
-    name:
-        Stable dataset identifier.
+    Converts an arbitrary state dictionary into a key-value tabular
+    format suitable for Excel persistence. Values are JSON serialized.
 
-    data:
-        Materialized dataframe.
+    Args:
+        state: Dictionary of JSON-serializable dashboard state.
+
+    Returns:
+        A Polars DataFrame containing the serialized cache.
     """
+    _ = get_sheet_schema(WorksheetName.DASHBOARD_CACHE)
+    df_schema = {"cache_key": pl.Utf8, "cache_value": pl.Utf8}
 
-    name: str
-    data: pl.DataFrame
+    if not state:
+        return pl.DataFrame(schema=df_schema)
 
-    def __post_init__(self) -> None:
-        """Validation for name and data."""
-        if not self.name.strip():
-            raise ValueError("dataset name cannot be empty")
+    data = []
+    for key, value in state.items():
+        try:
+            serialized = json.dumps(value)
+            data.append({"cache_key": str(key), "cache_value": serialized})
+        except (TypeError, ValueError) as exc:
+            logger.warning("Failed to serialize dashboard cache key %r: %s", key, exc)
 
-        if _DATASET_COLUMN in self.data.columns:
-            raise ValueError(f"column '{_DATASET_COLUMN}' is reserved")
-
-
-@dataclass(frozen=True, slots=True)
-class DashboardCache:
-    """Collection of dashboard datasets."""
-
-    datasets: tuple[CacheDataset, ...]
-
-    def __post_init__(self) -> None:
-        """Validation for datasets."""
-        names = [dataset.name for dataset in self.datasets]
-
-        if len(names) != len(set(names)):
-            raise ValueError("duplicate dataset names detected")
-
-    def get(self, name: str) -> pl.DataFrame:
-        """Retrieve a dataset by name."""
-        for dataset in self.datasets:
-            if dataset.name == name:
-                return dataset.data
-
-        raise KeyError(name)
-
-    def contains(self, name: str) -> bool:
-        """Check whether a dataset exists."""
-        return any(dataset.name == name for dataset in self.datasets)
-
-    @property
-    def names(self) -> tuple[str, ...]:
-        """Dataset names."""
-        return tuple(dataset.name for dataset in self.datasets)
+    return pl.DataFrame(data, schema=df_schema)
 
 
-def build_dashboard_cache(
-    **datasets: pl.DataFrame,
-) -> DashboardCache:
-    """Construct a DashboardCache from named dataframes.
+def parse_dashboard_cache_df(df: pl.DataFrame) -> dict[str, Any]:
+    """Deserialize dashboard state from a DataFrame.
 
-    Example:
-    -------
-    build_dashboard_cache(
-        monthly_spend=spend_df,
-        supplier_summary=supplier_df,
-    )
+    Reconstructs the state dictionary from the key-value tabular format.
+
+    Args:
+        df: The Dashboard_Cache DataFrame.
+
+    Returns:
+        Dictionary of parsed dashboard state.
     """
-    return DashboardCache(
-        datasets=tuple(
-            CacheDataset(
-                name=name,
-                data=data.clone(),
-            )
-            for name, data in datasets.items()
-        )
-    )
+    if df.is_empty():
+        return {}
 
+    if "cache_key" not in df.columns or "cache_value" not in df.columns:
+        logger.debug("Dashboard cache DataFrame is missing standard key/value columns.")
+        return {}
 
-def to_dataframe(
-    cache: DashboardCache,
-) -> pl.DataFrame:
-    """Serialize DashboardCache into a worksheet dataframe."""
-    if not cache.datasets:
-        return pl.DataFrame(
-            schema={
-                _DATASET_COLUMN: pl.String,
-            }
-        )
+    state: dict[str, Any] = {}
 
-    frames: list[pl.DataFrame] = []
+    for row in df.iter_rows(named=True):
+        key = row.get("cache_key")
+        value_str = row.get("cache_value")
 
-    for dataset in cache.datasets:
-        frames.append(
-            dataset.data.with_columns(pl.lit(dataset.name).alias(_DATASET_COLUMN))
-        )
+        if key is None or value_str is None:
+            continue
 
-    return pl.concat(
-        frames,
-        how="diagonal_relaxed",
-    )
+        try:
+            state[str(key)] = json.loads(str(value_str))
+        except (json.JSONDecodeError, TypeError):
+            # Fallback to string if JSON decoding fails (e.g., manual Excel edit)
+            state[str(key)] = value_str
 
-
-def from_dataframe(
-    dataframe: pl.DataFrame,
-) -> DashboardCache:
-    """Reconstruct DashboardCache from worksheet data."""
-    if dataframe.is_empty():
-        return DashboardCache(datasets=())
-
-    if _DATASET_COLUMN not in dataframe.columns:
-        raise ValueError(
-            f"dashboard cache worksheet missing '{_DATASET_COLUMN}' column"
-        )
-
-    datasets: list[CacheDataset] = []
-
-    names = dataframe.get_column(_DATASET_COLUMN).unique().sort().to_list()
-
-    for name in names:
-        dataset_frame = dataframe.filter(pl.col(_DATASET_COLUMN) == name).drop(
-            _DATASET_COLUMN
-        )
-
-        drop_cols = [
-            col
-            for col in dataset_frame.columns
-            if dataset_frame.get_column(col).null_count() == dataset_frame.height
-        ]
-
-        if drop_cols:
-            dataset_frame = dataset_frame.drop(drop_cols)
-
-        datasets.append(
-            CacheDataset(
-                name=name,
-                data=dataset_frame,
-            )
-        )
-
-    return DashboardCache(datasets=tuple(datasets))
+    return state

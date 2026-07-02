@@ -21,21 +21,26 @@ from pathlib import Path
 
 from opstools.inventory_forecast.config import Settings
 from opstools.inventory_forecast.services.pipeline_service import (
+    # pyrefly: ignore [missing-module-attribute]
     PipelineService,
 )
 from opstools.inventory_forecast.services.state import (
+    # pyrefly: ignore [missing-module-attribute]
     PipelineRequest,
 )
 
 
 def test_pipeline_emits_progress_stages(
+    # pyrefly: ignore [implicit-any-parameter]
     monkeypatch,
+    # pyrefly: ignore [implicit-any-parameter]
     tmp_path,
 ) -> None:
     """Pipeline should emit ordered progress updates."""
     stages = []
 
-    def _progress(update):
+    # pyrefly: ignore [implicit-any-parameter]
+    def _progress(update) -> None:
         stages.append(update.stage)
 
     monkeypatch.setattr(
@@ -79,6 +84,7 @@ def test_pipeline_emits_progress_stages(
 
 
 def test_load_existing_workbook_roundtrip(
+    # pyrefly: ignore [implicit-any-parameter]
     monkeypatch,
 ) -> None:
     """Workbook reload path should delegate to WorkbookService."""

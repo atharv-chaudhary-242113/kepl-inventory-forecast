@@ -8,6 +8,7 @@ from opstools.inventory_forecast.engine import (
 )
 
 
+# pyrefly: ignore [implicit-any-parameter]
 def test_fully_delivered_order_is_not_pending(ledger) -> None:
     """An order received in full produces no pending row."""
     pov = ledger([(date(2025, 1, 1), "O1", "Acme", "Wire", 10.0, 100.0)])
@@ -19,6 +20,7 @@ def test_fully_delivered_order_is_not_pending(ledger) -> None:
     assert out.height == 0
 
 
+# pyrefly: ignore [implicit-any-parameter]
 def test_partially_delivered_order_reports_shortfall(ledger) -> None:
     """A short order surfaces with pending_qty = ordered - delivered."""
     pov = ledger([(date(2025, 1, 1), "O1", "Acme", "Wire", 10.0, 100.0)])
@@ -34,6 +36,7 @@ def test_partially_delivered_order_reports_shortfall(ledger) -> None:
     assert row["pending_qty"] == 6.0
 
 
+# pyrefly: ignore [implicit-any-parameter]
 def test_undelivered_order_is_fully_pending(ledger) -> None:
     """An order with no receipt is pending for its entire quantity."""
     pov = ledger([(date(2025, 1, 1), "O1", "Acme", "Wire", 7.0, 70.0)])
@@ -47,6 +50,7 @@ def test_undelivered_order_is_fully_pending(ledger) -> None:
     assert out.row(0, named=True)["delivered_qty"] == 0.0
 
 
+# pyrefly: ignore [implicit-any-parameter]
 def test_delivered_qty_sums_across_receipts(ledger) -> None:
     """Multiple receipts against one order roll up to a single pending row."""
     pov = ledger([(date(2025, 1, 1), "O1", "Acme", "Wire", 20.0, 200.0)])
@@ -65,6 +69,7 @@ def test_delivered_qty_sums_across_receipts(ledger) -> None:
     assert row["pending_qty"] == 10.0
 
 
+# pyrefly: ignore [implicit-any-parameter]
 def test_age_days_measured_from_latest_order_not_wallclock(ledger) -> None:
     """Age is relative to the newest order date, keeping the result deterministic."""
     pov = ledger(
@@ -84,6 +89,7 @@ def test_age_days_measured_from_latest_order_not_wallclock(ledger) -> None:
     assert by_item["Bolt"]["age_days"] == 0
 
 
+# pyrefly: ignore [implicit-any-parameter]
 def test_pending_output_column_order_matches_contract(ledger) -> None:
     """Schema must equal the Pending_Deliveries sheet column order."""
     pov = ledger([(date(2025, 1, 1), "O1", "Acme", "Wire", 5.0, 50.0)])
@@ -102,6 +108,7 @@ def test_pending_output_column_order_matches_contract(ledger) -> None:
     ]
 
 
+# pyrefly: ignore [implicit-any-parameter]
 def test_pending_rows_are_sorted_by_contract_keys(ledger) -> None:
     """Pending output is deterministic across supplier, item, date, voucher."""
     pov = ledger(

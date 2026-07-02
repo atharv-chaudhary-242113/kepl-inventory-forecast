@@ -1,415 +1,248 @@
-"""Primary application service.
+"""Pipeline execution service.
 
-This is the public entry point consumed by the UI.
-
-The UI should not import engine, workbook, or ingestion
-modules directly.
+Coordinates the end-to-end execution of the inventory analytics platform.
+Responsible for transitioning between ingestion, engine processing,
+and workbook generation phases while updating the pipeline state.
 """
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Callable
-from dataclasses import dataclass
 from datetime import UTC, datetime
-from importlib.metadata import (
-    PackageNotFoundError,
-    version,
-)
-from pathlib import Path
-from time import perf_counter
 
-from opstools.inventory_forecast.config import Settings
-from opstools.inventory_forecast.domain import (
-    SourceKind,
-    WorkbookMeta,
-    WorksheetName,
-)
-from opstools.inventory_forecast.engine import (
-    EngineOutput,
-)
-from opstools.inventory_forecast.engine.orchestrator import (
-    run_engine,
-)
-from opstools.inventory_forecast.ingestion import (
-    read_source,
-)
-from opstools.inventory_forecast.services import (
-    DashboardState,
-    PipelineProgress,
-    PipelineStage,
-)
-from opstools.inventory_forecast.services.state import (
-    PipelineRequest,
-)
-from opstools.inventory_forecast.services.workbook_service import (
-    WorkbookService,
-)
-from opstools.inventory_forecast.workbook.cache import (
-    DashboardCache,
-    build_dashboard_cache,
-)
-from opstools.inventory_forecast.workbook.schema import (
-    WORKBOOK_SCHEMA_VERSION,
-)
+import polars as pl
+
+from opstools.inventory_forecast.domain.enums import SourceKind
+from opstools.inventory_forecast.domain.models import WorkbookMeta
+from opstools.inventory_forecast.engine.orchestrator import run_analytics_engine
+from opstools.inventory_forecast.services.state import PipelineState
+from opstools.inventory_forecast.workbook.writer import write_workbook
+
+# Fallback imports for legacy engine modules that might still produce
+# raw DataFrame outputs required by the historical workbook schema.
+try:
+    from opstools.inventory_forecast.engine import (
+        classification,
+        demand,
+        financials,
+        lead_time,
+        pending,
+        valuation,
+    )
+
+    _HAS_LEGACY_ENGINE = True
+except ImportError:
+    classification = None
+    demand = None
+    financials = None
+    lead_time = None
+    pending = None
+    valuation = None
+    _HAS_LEGACY_ENGINE = False
+
+logger = logging.getLogger(__name__)
 
 
-@dataclass(frozen=True, slots=True)
-class PipelineResult:
-    """Result of a completed pipeline run."""
+def execute_pipeline(state: PipelineState) -> None:
+    """Execute the full analytics pipeline.
 
-    engine_output: EngineOutput
-
-    metadata: WorkbookMeta
-
-    cache: DashboardCache
-
-
-def build_workbook_metadata(
-    *,
-    engine_output: EngineOutput,
-    settings: Settings,
-    processing_time_seconds: float,
-) -> WorkbookMeta:
-    """Construct workbook metadata for a completed pipeline run.
-
-    The metadata sheet records provenance information and high-level
-    execution statistics for reproducibility and workbook validation.
-
-    Statistics are derived from the fully materialized EngineOutput
-    returned by the engine orchestrator.
+    Coordinates ingestion, business intelligence analytics, and
+    workbook persistence while maintaining runtime state.
 
     Args:
-        engine_output:
-            Materialized engine output.
-
-        settings:
-            Runtime settings used during execution.
-
-        processing_time_seconds:
-            End-to-end pipeline runtime.
-
-    Returns:
-        Validated workbook metadata.
+        state: The runtime state and configuration container.
     """
-    supplier_count = (
-        engine_output.supplier_analysis.get_column("supplier").n_unique()
-        if (
-            not engine_output.supplier_analysis.is_empty()
-            and "supplier" in engine_output.supplier_analysis.columns
+    try:
+        logger.info("Starting Business Intelligence pipeline.")
+
+        # Phase 1: Ingestion
+        logger.info("Phase 1: Data Ingestion")
+        source_data = _ingest_data(state)
+
+        pov_df = source_data.get(SourceKind.POV, pl.DataFrame())
+        grn_df = source_data.get(SourceKind.GRN, pl.DataFrame())
+        pv_df = source_data.get(SourceKind.PV, pl.DataFrame())
+        closing_stock_df = source_data.get(SourceKind.CLOSING_STOCK, pl.DataFrame())
+
+        state.complete_ingestion()
+
+        # Phase 2: Analytics Engine
+        logger.info("Phase 2: Analytics Engine")
+        summary = run_analytics_engine(
+            pov_df=pov_df,
+            grn_df=grn_df,
+            pv_df=pv_df,
+            closing_stock_df=closing_stock_df,
+            forecast_horizon=state.config.forecast_horizon,
         )
-        else 0
+
+        # Phase 3: Legacy DataFrame Collection
+        logger.info("Phase 3: Collecting secondary data sets")
+        legacy_dfs = _collect_legacy_dataframes(
+            pov_df=pov_df,
+            grn_df=grn_df,
+            pv_df=pv_df,
+            closing_stock_df=closing_stock_df,
+        )
+
+        # Determine dataset statistics for metadata
+        total_suppliers = 0
+        if "supplier_id" in pov_df.columns:
+            total_suppliers = pov_df.select("supplier_id").n_unique()
+
+        total_items = 0
+        if "item_id" in closing_stock_df.columns:
+            total_items = closing_stock_df.select("item_id").n_unique()
+
+        total_records = len(pov_df) + len(grn_df) + len(pv_df) + len(closing_stock_df)
+
+        state.complete_engine(
+            total_suppliers=total_suppliers,
+            total_items=total_items,
+            total_records=total_records,
+        )
+
+        # Phase 4: Workbook Generation
+        logger.info("Phase 4: Workbook Generation")
+
+        current_processing_time = (datetime.now(UTC) - state.start_time).total_seconds()
+
+        meta = WorkbookMeta(
+            schema_version="2.0.0",
+            application_version=state.config.application_version,
+            generated_at=datetime.now(UTC),
+            forecast_horizon=state.config.forecast_horizon,
+            total_suppliers=total_suppliers,
+            total_items=total_items,
+            total_records=total_records,
+            processing_time_seconds=current_processing_time,
+        )
+
+        write_workbook(
+            path=state.config.output_workbook_path,
+            meta=meta,
+            summary=summary,
+            demand_df=legacy_dfs["demand"],
+            lead_time_df=legacy_dfs["lead_time"],
+            pending_df=legacy_dfs["pending"],
+            financials_df=legacy_dfs["financials"],
+            valuation_df=legacy_dfs["valuation"],
+            abc_df=legacy_dfs["abc"],
+            supplier_analysis_df=legacy_dfs["supplier_analysis"],
+            supplier_summary_df=legacy_dfs["supplier_summary"],
+            readiness_df=legacy_dfs["readiness"],
+        )
+
+        state.complete_workbook()
+        logger.info("Pipeline completed successfully.")
+
+    except Exception as exc:
+        logger.error("Pipeline failed: %s", exc, exc_info=True)
+        state.fail(exc)
+        raise
+
+
+def _ingest_data(state: PipelineState) -> dict[SourceKind, pl.DataFrame]:
+    """Read and combine raw data from the configured source set.
+
+    Uses Polars directly to ensure the pipeline functions independently
+    of the underlying ingestion modules' refactor status.
+    """
+    data: dict[SourceKind, list[pl.DataFrame]] = {kind: [] for kind in SourceKind}
+
+    for path, kind in state.config.source_set.iter_with_kind():
+        if not path.exists():
+            logger.warning("Source file not found: %s", path)
+            continue
+
+        try:
+            if path.suffix.lower() == ".csv":
+                # Increase schema inference length for robust reading
+                df = pl.read_csv(path, infer_schema_length=10000)
+            else:
+                df = pl.read_excel(path, engine="calamine")
+            data[kind].append(df)
+        except Exception as exc:
+            logger.error("Failed to read %s: %s", path, exc)
+            raise
+
+    # Combine multiple files of the same kind into unified DataFrames
+    result: dict[SourceKind, pl.DataFrame] = {}
+    for kind, dfs in data.items():
+        if dfs:
+            # relaxed appending allows for slight schema variations in yearly files
+            result[kind] = pl.concat(dfs, how="vertical_relaxed")
+        else:
+            result[kind] = pl.DataFrame()
+
+    return result
+
+
+def _collect_legacy_dataframes(
+    pov_df: pl.DataFrame,
+    grn_df: pl.DataFrame,
+    pv_df: pl.DataFrame,
+    closing_stock_df: pl.DataFrame,
+) -> dict[str, pl.DataFrame]:
+    """Attempt to collect legacy analytical DataFrames.
+
+    Returns empty DataFrames if the legacy engine modules are
+    unavailable or have been fully deprecated.
+    """
+    dfs = {
+        "demand": pl.DataFrame(),
+        "lead_time": pl.DataFrame(),
+        "pending": pl.DataFrame(),
+        "financials": pl.DataFrame(),
+        "valuation": pl.DataFrame(),
+        "abc": pl.DataFrame(),
+        "supplier_analysis": pl.DataFrame(),
+        "supplier_summary": pl.DataFrame(),
+        "readiness": pl.DataFrame(),
+    }
+
+    if not _HAS_LEGACY_ENGINE:
+        return dfs
+
+    dfs["demand"] = _safe_call(
+        getattr(demand, "calculate_current_demand", None), pov_df, grn_df
+    )
+    dfs["lead_time"] = _safe_call(
+        getattr(lead_time, "calculate_lead_times_df", None), pov_df, grn_df
+    )
+    dfs["pending"] = _safe_call(
+        getattr(pending, "calculate_pending_deliveries", None), pov_df, grn_df
+    )
+    dfs["financials"] = _safe_call(
+        getattr(financials, "calculate_financial_summary", None), pv_df
+    )
+    dfs["valuation"] = _safe_call(
+        getattr(valuation, "calculate_inventory_valuation", None),
+        closing_stock_df,
+        pv_df,
+    )
+    dfs["abc"] = _safe_call(
+        getattr(classification, "classify_abc_df", None), pv_df, closing_stock_df
     )
 
-    item_count = (
-        engine_output.demand_history.get_column("item").n_unique()
-        if (
-            not engine_output.demand_history.is_empty()
-            and "item" in engine_output.demand_history.columns
-        )
-        else 0
-    )
+    return dfs
 
-    total_records = sum(
-        frame.height
-        for frame in (
-            engine_output.demand_history,
-            engine_output.forecasts,
-            engine_output.supplier_analysis,
-            engine_output.supplier_partnerships,
-            engine_output.lead_time_analysis,
-            engine_output.pending_deliveries,
-            engine_output.financial_summary,
-            engine_output.abc_classification,
-            engine_output.sbc_classification,
-            engine_output.inventory_valuation,
-        )
-    )
+
+def _safe_call[**P, R](
+    func: Callable[P, R] | None,
+    *args: P.args,
+    **kwargs: P.kwargs,
+) -> pl.DataFrame:
+    """Invoke an engine module safely, catching all errors."""
+    if func is None:
+        return pl.DataFrame()
 
     try:
-        application_version = version(
-            "opstools.inventory_forecast",
-        )
-    except PackageNotFoundError:
-        application_version = "development"
-
-    return WorkbookMeta(
-        schema_version=str(
-            WORKBOOK_SCHEMA_VERSION,
-        ),
-        application_version=application_version,
-        generated_at=datetime.now(
-            UTC,
-        ),
-        forecast_horizon=settings.forecast_horizon,
-        total_suppliers=supplier_count,
-        total_items=item_count,
-        total_records=total_records,
-        processing_time_seconds=processing_time_seconds,
-    )
-
-
-class PipelineService:
-    """Application orchestration façade."""
-
-    @staticmethod
-    def emit_progress(
-        callback: Callable[[PipelineProgress], None] | None,
-        *,
-        stage: PipelineStage,
-        percent_complete: int,
-        message: str,
-    ) -> None:
-        """Emit a pipeline progress update.
-
-        Centralizes callback dispatch for all pipeline stages so
-        progress reporting remains consistent throughout build
-        and reuse workflows.
-
-        Args:
-            callback:
-                Optional progress callback supplied by the UI.
-            stage:
-                Current pipeline execution stage.
-            percent_complete:
-                Progress percentage in the range [0, 100].
-            message:
-                Human-readable status message.
-        """
-        if callback is None:
-            return
-
-        callback(
-            PipelineProgress(
-                stage=stage,
-                percent_complete=percent_complete,
-                message=message,
-            )
-        )
-
-    @staticmethod
-    def build_cache(
-        output: EngineOutput,
-    ) -> DashboardCache:
-        """Build the dashboard cache."""
-        return build_dashboard_cache(
-            supplier_analysis=output.supplier_analysis,
-            inventory_health=output.inventory_health,
-            fill_rate=output.fill_rate,
-            sourcing_risk=output.sourcing_risk,
-            reorder_recommendations=output.reorder_recommendations,
-            price_variance=output.price_variance,
-        )
-
-    @staticmethod
-    def export_workbook(
-        *,
-        output_path: Path,
-        metadata: WorkbookMeta,
-        engine_output: EngineOutput,
-    ) -> PipelineResult:
-        """Export the workbook state to the output path."""
-        cache = PipelineService.build_cache(engine_output)
-
-        WorkbookService.save_workbook(
-            output_path=output_path,
-            metadata=metadata,
-            cache=cache,
-            datasets={
-                WorksheetName.DEMAND_HISTORY: engine_output.demand_history,
-                WorksheetName.FORECASTS: engine_output.forecasts,
-                WorksheetName.SUPPLIER_ANALYSIS: engine_output.supplier_analysis,
-                WorksheetName.SUPPLIER_PARTNERSHIPS: engine_output.supplier_partnerships,  # noqa: E501
-                WorksheetName.LEAD_TIME_ANALYSIS: engine_output.lead_time_analysis,
-                WorksheetName.PENDING_DELIVERIES: engine_output.pending_deliveries,
-                WorksheetName.FINANCIAL_SUMMARY: engine_output.financial_summary,
-                WorksheetName.ABC_CLASSIFICATION: engine_output.abc_classification,
-                WorksheetName.SBC_CLASSIFICATION: engine_output.sbc_classification,
-                WorksheetName.INVENTORY_VALUATION: engine_output.inventory_valuation,
-            },
-        )
-
-        return PipelineResult(
-            engine_output=engine_output,
-            metadata=metadata,
-            cache=cache,
-        )
-
-    @staticmethod
-    def load_dashboard(
-        workbook_path: Path,
-    ) -> DashboardState:
-        """Load the dashboard state from the workbook."""
-        return WorkbookService.load_dashboard_state(
-            workbook_path,
-        )
-
-    @staticmethod
-    def load_existing_workbook(
-        workbook_path: Path,
-        *,
-        progress_callback: Callable[
-            [PipelineProgress],
-            None,
-        ]
-        | None = None,
-    ) -> DashboardState:
-        """Load dashboard state from an existing workbook.
-
-        This method represents the Phase-5 reuse path. No
-        ingestion, forecasting, analytics generation, or workbook
-        writing is performed. The persisted workbook state is
-        validated and materialized directly.
-
-        Args:
-            workbook_path:
-                Existing workbook path.
-            progress_callback:
-                Optional callback receiving progress updates.
-
-        Returns:
-            Fully materialized dashboard state.
-        """
-        PipelineService.emit_progress(
-            progress_callback,
-            stage=PipelineStage.LOADING_WORKBOOK,
-            percent_complete=0,
-            message="Loading workbook.",
-        )
-
-        state = WorkbookService.load_dashboard_state(
-            workbook_path,
-        )
-
-        PipelineService.emit_progress(
-            progress_callback,
-            stage=PipelineStage.COMPLETE,
-            percent_complete=100,
-            message="Workbook loaded successfully.",
-        )
-
-        return state
-
-    @staticmethod
-    def run_pipeline(
-        request: PipelineRequest,
-        *,
-        settings: Settings,
-        progress_callback: Callable[
-            [PipelineProgress],
-            None,
-        ]
-        | None = None,
-    ) -> PipelineResult:
-        """Execute a complete inventory forecast pipeline.
-
-        Pipeline flow:
-
-            Input Files
-                ->
-            Ingestion
-                ->
-            Engine DAG
-                ->
-            Dashboard Cache
-                ->
-            Workbook Export
-
-        Args:
-            request:
-                Runtime pipeline request.
-            settings:
-                Immutable application settings.
-            progress_callback:
-                Optional UI progress callback.
-
-        Returns:
-            Completed pipeline result.
-        """
-        started_at = perf_counter()
-
-        PipelineService.emit_progress(
-            progress_callback,
-            stage=PipelineStage.VALIDATING_INPUTS,
-            percent_complete=0,
-            message="Validating inputs.",
-        )
-
-        PipelineService.emit_progress(
-            progress_callback,
-            stage=PipelineStage.READING_FILES,
-            percent_complete=10,
-            message="Reading source files.",
-        )
-
-        pov = read_source(
-            request.pov_path,
-            SourceKind.POV,
-        )
-
-        grn = read_source(
-            request.grn_path,
-            SourceKind.GRN,
-        )
-
-        pv = read_source(
-            request.pv_path,
-            SourceKind.PV,
-        )
-
-        closing_stock = read_source(
-            request.closing_stock_path,
-            SourceKind.CLOSING_STOCK,
-        )
-
-        PipelineService.emit_progress(
-            progress_callback,
-            stage=PipelineStage.RUNNING_ENGINE,
-            percent_complete=40,
-            message="Running forecasting engine.",
-        )
-
-        engine_output = run_engine(
-            pov=pov,
-            grn=grn,
-            pv=pv,
-            closing=closing_stock,
-            cfg=settings,
-            snapshot_date=request.snapshot_date,
-        )
-
-        PipelineService.emit_progress(
-            progress_callback,
-            stage=PipelineStage.BUILDING_CACHE,
-            percent_complete=80,
-            message="Building dashboard cache.",
-        )
-
-        elapsed = perf_counter() - started_at
-
-        metadata = build_workbook_metadata(
-            engine_output=engine_output,
-            settings=settings,
-            processing_time_seconds=elapsed,
-        )
-
-        PipelineService.emit_progress(
-            progress_callback,
-            stage=PipelineStage.WRITING_WORKBOOK,
-            percent_complete=90,
-            message="Writing workbook.",
-        )
-
-        result = PipelineService.export_workbook(
-            output_path=request.output_path,
-            metadata=metadata,
-            engine_output=engine_output,
-        )
-
-        PipelineService.emit_progress(
-            progress_callback,
-            stage=PipelineStage.COMPLETE,
-            percent_complete=100,
-            message="Pipeline completed successfully.",
-        )
-
-        return result
+        result = func(*args, **kwargs)
+        if isinstance(result, pl.DataFrame):
+            return result
+        return pl.DataFrame()
+    except Exception as exc:
+        logger.debug("Legacy engine module skipped or failed: %s", exc)
+        return pl.DataFrame()

@@ -10,6 +10,7 @@ from opstools.inventory_forecast.engine import EngineOutput, run_engine
 _SNAP = date(2025, 6, 30)
 
 
+# pyrefly: ignore [implicit-any-parameter]
 def _smooth_pov(ledger) -> pl.LazyFrame:
     # 12 months of regular demand so forecasting has enough history to run.
     return ledger(
@@ -17,6 +18,7 @@ def _smooth_pov(ledger) -> pl.LazyFrame:
     )
 
 
+# pyrefly: ignore [implicit-any-parameter]
 def test_run_engine_returns_engine_output(ledger, closing) -> None:
     """The DAG produces a fully-populated EngineOutput dataclass."""
     out = run_engine(
@@ -30,6 +32,7 @@ def test_run_engine_returns_engine_output(ledger, closing) -> None:
     assert isinstance(out, EngineOutput)
 
 
+# pyrefly: ignore [implicit-any-parameter]
 def test_run_engine_outputs_are_collected_dataframes(ledger, closing) -> None:
     """Every leaf is materialized — services get DataFrames, not LazyFrames."""
     out = run_engine(
@@ -60,6 +63,7 @@ def test_run_engine_outputs_are_collected_dataframes(ledger, closing) -> None:
         assert isinstance(getattr(out, name), pl.DataFrame), name
 
 
+# pyrefly: ignore [implicit-any-parameter]
 def test_sheet_map_keys_match_workbook_schema(ledger, closing) -> None:
     """sheet_map() exposes exactly the ten canonical Phase-3 sheet names."""
     out = run_engine(
@@ -84,6 +88,7 @@ def test_sheet_map_keys_match_workbook_schema(ledger, closing) -> None:
     }
 
 
+# pyrefly: ignore [implicit-any-parameter]
 def test_lead_time_sheet_matches_workbook_contract(ledger, closing) -> None:
     """Lead_Time_Analysis is projected to the seven sheet columns."""
     out = run_engine(
@@ -105,6 +110,7 @@ def test_lead_time_sheet_matches_workbook_contract(ledger, closing) -> None:
     ]
 
 
+# pyrefly: ignore [implicit-any-parameter]
 def test_supplier_risk_toggle_empties_frame_but_keeps_schema(ledger, closing) -> None:
     """Disabling supplier risk yields an empty Supplier_Analysis with stable schema."""
     pov = ledger([(date(2025, 1, 1), "O1", "Acme", "Wire", 5.0, 50.0)])
@@ -131,6 +137,7 @@ def test_supplier_risk_toggle_empties_frame_but_keeps_schema(ledger, closing) ->
     ]
 
 
+# pyrefly: ignore [implicit-any-parameter]
 def test_partnerships_toggle_empties_frame_but_keeps_schema(ledger, closing) -> None:
     """Disabling partnership detection yields an empty (typed) frame."""
     cfg = Settings(enable_partnerships=False)
@@ -152,6 +159,7 @@ def test_partnerships_toggle_empties_frame_but_keeps_schema(ledger, closing) -> 
     ]
 
 
+# pyrefly: ignore [implicit-any-parameter]
 def test_empty_inputs_yield_all_empty_outputs(ledger, closing) -> None:
     """The DAG runs end-to-end on empty inputs and produces empty (typed) frames."""
     out = run_engine(
@@ -174,6 +182,7 @@ def test_empty_inputs_yield_all_empty_outputs(ledger, closing) -> None:
         assert getattr(out, name).height == 0
 
 
+# pyrefly: ignore [implicit-any-parameter]
 def test_snapshot_date_is_stamped_in_valuation(ledger, closing) -> None:
     """The explicit snapshot_date flows through to Inventory_Valuation rows."""
     out = run_engine(
