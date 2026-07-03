@@ -77,9 +77,9 @@ def build_abc_classification(pv: pl.LazyFrame, cfg: Settings) -> pl.LazyFrame:
             (pl.col("annual_value").cum_sum() / pl.col("annual_value").sum()).alias(
                 "_cum_revenue"
             ),
-            (pl.col("quantityt_bought").cum_sum() / pl.col("quantityt_bought").sum()).alias(
-                "_cum_quantity"
-            ),
+            (
+                pl.col("quantityt_bought").cum_sum() / pl.col("quantityt_bought").sum()
+            ).alias("_cum_quantity"),
         )
         .with_columns(
             pl.when(pl.col("_cum_revenue") <= pl.lit(Decimal(str(cfg.abc_a_threshold))))

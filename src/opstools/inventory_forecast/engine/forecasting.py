@@ -29,6 +29,8 @@ dict-order, no unseeded randomness.
 
 from __future__ import annotations
 
+import logging
+
 import polars as pl
 from statsforecast import StatsForecast
 from statsforecast.models import (
@@ -43,6 +45,8 @@ from statsforecast.models import (
 
 from opstools.inventory_forecast.config import Settings
 from opstools.inventory_forecast.domain import ForecastModel, SbcClass
+
+logger = logging.getLogger(__name__)
 
 # --- Constants ------------------------------------------------------------
 
@@ -63,12 +67,27 @@ _KEY_SEP: str = "\x01"
 # Series-length tiers (see module docstring). Tuned conservatively; raise these if
 # you have longer histories and want stricter selection.
 _MIN_FIT_LEN: int = 3  # below this, no model is fit — pure last-value naive.
-_MIN_CV_LEN: int = 8  # below this, fit but do not cross-validate (no selection).
+_MIN_CV_LEN: int = 12  # below this, fit but do not cross-validate (no selection).
 
 # Rolling-origin CV geometry. cv_h is clamped to the requested horizon so a tiny
 # horizon does not demand more history than it needs.
 _CV_WINDOWS: int = 2
 _MAX_CV_H: int = 3
+
+def _min_cv_history(horizon: int) -> int:
+    """Minimum observations required for rolling-origin cross-validation.
+
+    Each CV window consumes `h` observations plus one step between windows.
+    A conservative lower bound also enforces the module-wide minimum history
+    for statistically meaningful model fitting.
+    """
+    cv_h = min(horizon, _MAX_CV_H)
+
+    return max(
+        _MIN_CV_LEN,
+        cv_h + _CV_WINDOWS + _MIN_FIT_LEN,
+    )
+
 
 # A no-backtest confidence for fallback/trivial series. It is *not* a quality
 # claim — there was no backtest — so it is deliberately middling and the actual
@@ -285,8 +304,16 @@ def _select_models(
         .join(_key_to_class(fittable, classes), on="unique_id", how="left")
     )
 
-    eligible = key_class.filter(pl.col("n") >= _MIN_CV_LEN)
-    fallback = key_class.filter(pl.col("n") < _MIN_CV_LEN)
+    min_history = _min_cv_history(horizon)
+
+    logger.debug(
+        "Minimum history required for cross-validation: %d",
+        min_history,
+    )
+
+    eligible = key_class.filter(pl.col("n") >= min_history)
+
+    fallback = key_class.filter(pl.col("n") < min_history)
 
     selected = _select_by_cv(fittable, eligible, horizon)
     fb = fallback.with_columns(
@@ -327,14 +354,60 @@ def _select_by_cv(
     cv_h = min(horizon, _MAX_CV_H)
 
     sf = StatsForecast(models=_build_models(), freq=_MONTHLY, n_jobs=1)
-    cv = _as_polars(
-        sf.cross_validation(
-            df=eligible_long.select(["unique_id", "ds", "y"]),
-            h=cv_h,
-            n_windows=_CV_WINDOWS,
-            step_size=1,
-        )
+    logger.debug(
+        "Eligible series: %d (minimum observations=%d)",
+        eligible.height,
+        _MIN_CV_LEN,
     )
+
+    logger.debug(
+        "Observation count summary:\n%s",
+        eligible_long.group_by("unique_id").len().sort("len"),
+    )
+    try:
+        cv = _as_polars(
+            sf.cross_validation(
+                df=eligible_long.select(
+                    [
+                        "unique_id",
+                        "ds",
+                        "y",
+                    ]
+                ),
+                h=cv_h,
+                n_windows=_CV_WINDOWS,
+                step_size=1,
+            )
+        )
+    except NotImplementedError as exc:
+        logger.warning(
+            "Cross-validation failed because one or more models do not "
+            "support the available history (%s). Falling back to the "
+            "default model for each SBC class.",
+            exc,
+        )
+
+        return (
+            eligible.select(
+                [
+                    "unique_id",
+                    "demand_class",
+                ]
+            )
+            .with_columns(
+                pl.col("demand_class")
+                .replace_strict(_CLASS_DEFAULT)
+                .alias("model_alias"),
+                pl.lit(_FALLBACK_CONFIDENCE).alias("confidence_score"),
+            )
+            .select(
+                [
+                    "unique_id",
+                    "model_alias",
+                    "confidence_score",
+                ]
+            )
+        )
 
     # Per (key, model) mean absolute error across all CV points, melted long.
     errors = (
@@ -450,9 +523,31 @@ def _forecast_fitted(
         return _empty_forecast()
 
     sf = StatsForecast(models=_build_models(), freq=_MONTHLY, n_jobs=1)
-    wide = _as_polars(
-        sf.forecast(df=fittable.select(["unique_id", "ds", "y"]), h=horizon)
+    counts = fittable.group_by("unique_id").len().sort("len")
+
+    logger.info(
+        "Forecast stage observation counts:\n%s",
+        counts,
     )
+    try:
+        wide = _as_polars(
+            sf.forecast(
+                df=fittable.select(
+                    [
+                        "unique_id",
+                        "ds",
+                        "y",
+                    ]
+                ),
+                h=horizon,
+            )
+        )
+    except NotImplementedError:
+        logger.error(
+            "Smallest series entering forecast:\n%s",
+            counts.head(50),
+        )
+        raise
 
     return (
         wide.unpivot(

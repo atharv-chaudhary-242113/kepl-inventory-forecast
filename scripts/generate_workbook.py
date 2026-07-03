@@ -12,7 +12,6 @@ import logging
 import sys
 from pathlib import Path
 
-from opstools.inventory_forecast.config import Settings
 from opstools.inventory_forecast.domain.models import SourceSet
 from opstools.inventory_forecast.services.pipeline_service import execute_pipeline
 from opstools.inventory_forecast.services.state import PipelineConfig, PipelineState

@@ -99,10 +99,7 @@ def run_analytics_engine(
     logger.info("Classifying inventory.")
     demand_chars = classification.classify_sbc(demand_history)
 
-    abc_df = classification.build_abc_classification(
-        pv,
-        cfg
-    ).collect()
+    abc_df = classification.build_abc_classification(pv, cfg).collect()
 
     logger.info("Generating forecasts.")
     forecasts_df = forecasting.forecast_demand(
@@ -122,7 +119,7 @@ def run_analytics_engine(
 
     logger.info("Calculating inventory valuation and health.")
     inventory_val = valuation.build_inventory_valuation(
-        stock, pv, snapshot_date=date(2025,8,5)
+        stock, pv, snapshot_date=date(2025, 8, 5)
     )
     health_reports_df = inventory_health.build_inventory_health(
         valuation=inventory_val,
@@ -308,9 +305,7 @@ def _map_abc(df: pl.DataFrame) -> list[AbcClassification]:
                 cumulative_quantity_percentage=float(
                     row["cumulative_quantity_percentage"]
                 ),
-                abc_class=AbcClass(
-                    str(row["abc_class"])
-                ),
+                abc_class=AbcClass(str(row["abc_class"])),
             )
         )
 
