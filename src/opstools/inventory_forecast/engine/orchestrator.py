@@ -10,12 +10,13 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Sequence
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 
 import polars as pl
 
 from opstools.inventory_forecast.config import Settings
 from opstools.inventory_forecast.domain.enums import (
+    AbcClass,
     ForecastModel,
     ForecastStatus,
     InventoryStatus,
@@ -25,6 +26,7 @@ from opstools.inventory_forecast.domain.enums import (
     TrendDirection,
 )
 from opstools.inventory_forecast.domain.models import (
+    AbcClassification,
     AnalyticsSummary,
     DashboardPanelData,
     ExecutiveMetric,
@@ -91,12 +93,16 @@ def run_analytics_engine(
     demand_history = demand.reconstruct_demand(pov)
 
     logger.info("Generating financials and pending deliveries.")
-    financial_summary = financials.build_financial_summary(pv)
-    pending_deliveries = pending.build_pending_deliveries(pov, grn)
+    financial_summary = financials.build_financial_summary(pv, cfg)
+    pending_deliveries = pending.build_pending_deliveries(pov)
 
     logger.info("Classifying inventory.")
     demand_chars = classification.classify_sbc(demand_history)
-    _abc_class = classification.build_abc_classification(pv, cfg)
+
+    abc_df = classification.build_abc_classification(
+        pv,
+        cfg
+    ).collect()
 
     logger.info("Generating forecasts.")
     forecasts_df = forecasting.forecast_demand(
@@ -115,7 +121,9 @@ def run_analytics_engine(
     ).collect()
 
     logger.info("Calculating inventory valuation and health.")
-    inventory_val = valuation.build_inventory_valuation(stock, pv)
+    inventory_val = valuation.build_inventory_valuation(
+        stock, pv, snapshot_date=date(2025,8,5)
+    )
     health_reports_df = inventory_health.build_inventory_health(
         valuation=inventory_val,
         demand=demand_history,
@@ -134,6 +142,7 @@ def run_analytics_engine(
     replenishments = _map_replenishments(replenishments_df)
     forecast_results = _map_forecasts(forecasts_df)
     supplier_risks = _map_supplier_risks(supplier_risks_df)
+    abc_classification = _map_abc(abc_df)
 
     # 3. Business Intelligence Aggregation
     logger.info("Synthesizing Business Intelligence insights.")
@@ -154,6 +163,7 @@ def run_analytics_engine(
         supplier_risks=tuple(supplier_risks),
         replenishment_recommendations=tuple(replenishments),
         inventory_health=tuple(health_reports),
+        abc_classification=tuple(abc_classification),
         executive_metrics=tuple(executive_metrics),
         dashboard_data=tuple(dashboard_data),
         procurement_insights=tuple(procurement_insights),
@@ -223,7 +233,7 @@ def _map_supplier_risks(df: pl.DataFrame) -> list[SupplierRisk]:
             SupplierRisk(
                 supplier_id=str(row.get("supplier", "unknown")),
                 item_id="ALL",  # Engine aggregates at supplier level
-                dependency_level=SupplierDependencyLevel.MULTI_SOURCE,
+                dependency_level=SupplierDependencyLevel.DIVERSIFIED,
                 risk_level=risk_lvl,
                 supplier_count=1,
             )
@@ -274,6 +284,37 @@ def _map_forecasts(df: pl.DataFrame) -> list[ForecastResult]:
                 )
             )
     return results
+
+
+def _map_abc(df: pl.DataFrame) -> list[AbcClassification]:
+    """Map the eager ABC classification DataFrame to domain models."""
+    classifications: list[AbcClassification] = []
+
+    if df.height == 0:
+        return classifications
+
+    for row in df.iter_rows(named=True):
+        classifications.append(
+            AbcClassification(
+                supplier_id=str(row["supplier"]),
+                item_id=str(row["item"]),
+                annual_value=row["annual_value"],
+                quantity_sold=int(row["quantity_sold"]),
+                revenue_percentage=float(row["revenue_percentage"]),
+                cumulative_revenue_percentage=float(
+                    row["cumulative_revenue_percentage"]
+                ),
+                quantity_percentage=float(row["quantity_percentage"]),
+                cumulative_quantity_percentage=float(
+                    row["cumulative_quantity_percentage"]
+                ),
+                abc_class=AbcClass(
+                    str(row["abc_class"])
+                ),
+            )
+        )
+
+    return classifications
 
 
 def _build_sourcing_risks(

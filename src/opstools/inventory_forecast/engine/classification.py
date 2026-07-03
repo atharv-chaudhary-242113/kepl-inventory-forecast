@@ -40,13 +40,26 @@ def build_abc_classification(pv: pl.LazyFrame, cfg: Settings) -> pl.LazyFrame:
         cfg: Run settings supplying the A/B band cut-points (defaults 0.80/0.95).
 
     Returns:
-        A LazyFrame ``[supplier, item, annual_value(Decimal),
-        cumulative_percentage(Float64), abc_class(Utf8)]`` — the
-        ABC_Classification sheet contract (WORKBOOK_SCHEMA.md), sorted by value
-        descending (the order in which the cumulative curve is built).
+        A LazyFrame
+        ``[
+            supplier,
+            item,
+            annual_value(Decimal),
+            quantity_sold(Float64),
+            revenue_percentage(Float64),
+            cumulative_revenue_percentage(Float64),
+            quantity_percentage(Float64),
+            cumulative_quantity_percentage(Float64),
+            abc_class(Utf8)
+        ]``
+
+        The frame is sorted by annual procurement value in descending order and
+        represents the complete ABC business dataset consumed by the workbook,
+        dashboards, and downstream Business Intelligence components.
     """
     annual = pv.group_by(["supplier", "item"]).agg(
-        pl.col("amount").sum().alias("annual_value")
+        pl.col("amount").sum().alias("annual_value"),
+        pl.col("qty").sum().alias("quantity_bought"),
     )
 
     # Sort descending so the cumulative curve climbs from the highest-value item;
@@ -55,31 +68,45 @@ def build_abc_classification(pv: pl.LazyFrame, cfg: Settings) -> pl.LazyFrame:
 
     return (
         ranked.with_columns(
-            # Accumulate the cumulative share in *Decimal*, not Float64. An f64
-            # cum_sum rounds: 800/1000 + 150/1000 lands on 0.9500000000000001,
-            # which sits just *above* a 0.95 cut-point and silently mis-bands the
-            # item to C. Decimal cum_sum/sum is exact (0.9500), so the boundary
-            # decision is correct (THREAT_MODEL.md "Floating-Point Errors").
+            (pl.col("annual_value") / pl.col("annual_value").sum())
+            .cast(pl.Float64)
+            .alias("revenue_percentage"),
+            (pl.col("quantity_sold") / pl.col("quantity_sold").sum())
+            .cast(pl.Float64)
+            .alias("quantity_percentage"),
             (pl.col("annual_value").cum_sum() / pl.col("annual_value").sum()).alias(
-                "_cum_share"
-            )
+                "_cum_revenue"
+            ),
+            (pl.col("quantity_sold").cum_sum() / pl.col("quantity_sold").sum()).alias(
+                "_cum_quantity"
+            ),
         )
         .with_columns(
-            # Compare against Decimal-ized thresholds so both sides are exact; the
-            # Settings cut-points are plain floats, so str() round-trips them to
-            # the intended decimal (0.80 -> Decimal("0.8")).
-            pl.when(pl.col("_cum_share") <= pl.lit(Decimal(str(cfg.abc_a_threshold))))
+            pl.when(pl.col("_cum_revenue") <= pl.lit(Decimal(str(cfg.abc_a_threshold))))
             .then(pl.lit(AbcClass.A.value))
-            .when(pl.col("_cum_share") <= pl.lit(Decimal(str(cfg.abc_b_threshold))))
+            .when(pl.col("_cum_revenue") <= pl.lit(Decimal(str(cfg.abc_b_threshold))))
             .then(pl.lit(AbcClass.B.value))
             .otherwise(pl.lit(AbcClass.C.value))
             .alias("abc_class"),
-            # The sheet contract carries cumulative_percentage as Float64; cast the
-            # exact Decimal share for presentation only, after banding is decided.
-            pl.col("_cum_share").cast(pl.Float64).alias("cumulative_percentage"),
+            pl.col("_cum_revenue")
+            .cast(pl.Float64)
+            .alias("cumulative_revenue_percentage"),
+            pl.col("_cum_quantity")
+            .cast(pl.Float64)
+            .alias("cumulative_quantity_percentage"),
         )
         .select(
-            ["supplier", "item", "annual_value", "cumulative_percentage", "abc_class"]
+            [
+                "supplier",
+                "item",
+                "annual_value",
+                "quantity_sold",
+                "revenue_percentage",
+                "cumulative_revenue_percentage",
+                "quantity_percentage",
+                "cumulative_quantity_percentage",
+                "abc_class",
+            ]
         )
     )
 

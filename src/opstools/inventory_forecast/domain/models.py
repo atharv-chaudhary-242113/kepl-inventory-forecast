@@ -15,11 +15,13 @@ from __future__ import annotations
 from collections.abc import Iterator
 from dataclasses import dataclass
 from datetime import date, datetime
+from decimal import Decimal
 from pathlib import Path
 
 from pydantic import BaseModel, ConfigDict, Field
 
 from .enums import (
+    AbcClass,
     ForecastModel,
     ForecastStatus,
     InventoryStatus,
@@ -89,6 +91,46 @@ class WorkbookMeta(BaseModel):
     total_items: int = Field(ge=0)
     total_records: int = Field(ge=0)
     processing_time_seconds: float = Field(ge=0.0)
+
+
+@dataclass(frozen=True, slots=True)
+class AbcClassification:
+    """Business Intelligence view of an item's ABC classification."""
+
+    supplier_id: str
+    item_id: str
+
+    annual_value: Decimal
+
+    quantity_sold: float
+
+    revenue_percentage: float
+    cumulative_revenue_percentage: float
+
+    quantity_percentage: float
+    cumulative_quantity_percentage: float
+
+    abc_class: AbcClass
+
+    def __post_init__(self) -> None:
+        """Validate ABC classification metrics."""
+        if self.annual_value < Decimal("0"):
+            raise ValueError("annual_value cannot be negative.")
+
+        if self.quantity_sold < 0:
+            raise ValueError("quantity_sold cannot be negative.")
+
+        if not 0.0 <= self.revenue_percentage <= 1.0:
+            raise ValueError("revenue_percentage must be between 0 and 1.")
+
+        if not 0.0 <= self.cumulative_revenue_percentage <= 1.0:
+            raise ValueError("cumulative_revenue_percentage must be between 0 and 1.")
+
+        if not 0.0 <= self.quantity_percentage <= 1.0:
+            raise ValueError("quantity_percentage must be between 0 and 1.")
+
+        if not 0.0 <= self.cumulative_quantity_percentage <= 1.0:
+            raise ValueError("cumulative_quantity_percentage must be between 0 and 1.")
 
 
 @dataclass(frozen=True, slots=True)
@@ -368,6 +410,8 @@ class AnalyticsSummary:
     supplier_risks: tuple[SupplierRisk, ...]
     replenishment_recommendations: tuple[ReplenishmentRecommendation, ...]
     inventory_health: tuple[InventoryHealthReport, ...]
+
+    abc_classification: tuple[AbcClassification, ...] = ()
 
     # Business Intelligence Platform Extensions
     executive_metrics: tuple[ExecutiveMetric, ...] = ()
