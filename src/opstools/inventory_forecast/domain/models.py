@@ -102,7 +102,7 @@ class AbcClassification:
 
     annual_value: Decimal
 
-    quantity_sold: float
+    quantityt_bought: float
 
     revenue_percentage: float
     cumulative_revenue_percentage: float
@@ -117,8 +117,8 @@ class AbcClassification:
         if self.annual_value < Decimal("0"):
             raise ValueError("annual_value cannot be negative.")
 
-        if self.quantity_sold < 0:
-            raise ValueError("quantity_sold cannot be negative.")
+        if self.quantityt_bought < 0:
+            raise ValueError("quantityt_bought cannot be negative.")
 
         if not 0.0 <= self.revenue_percentage <= 1.0:
             raise ValueError("revenue_percentage must be between 0 and 1.")

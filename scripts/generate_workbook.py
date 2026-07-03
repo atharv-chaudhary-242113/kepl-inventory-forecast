@@ -12,6 +12,7 @@ import logging
 import sys
 from pathlib import Path
 
+from opstools.inventory_forecast.config import Settings
 from opstools.inventory_forecast.domain.models import SourceSet
 from opstools.inventory_forecast.services.pipeline_service import execute_pipeline
 from opstools.inventory_forecast.services.state import PipelineConfig, PipelineState
@@ -33,11 +34,14 @@ def _discover_files(input_dir: Path, pattern: str) -> tuple[Path, ...]:
         A sorted tuple of matching file paths.
     """
     files = []
-    for p in input_dir.iterdir():
-        if p.is_file() and p.suffix.lower() in (".csv", ".xlsx"):  # noqa: SIM102
-            # Case-insensitive pattern match
-            if pattern.lower() in p.name.lower():
-                files.append(p)
+    for p in input_dir.rglob("*"):
+        if (
+            p.is_file()
+            and p.suffix.lower() in (".csv", ".xlsx")
+            and pattern.lower() in p.name.lower()
+        ):
+            files.append(p)
+
     return tuple(sorted(files))
 
 

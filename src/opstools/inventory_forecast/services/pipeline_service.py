@@ -13,6 +13,7 @@ from datetime import UTC, datetime
 
 import polars as pl
 
+from opstools.inventory_forecast.config import Settings
 from opstools.inventory_forecast.domain.enums import SourceKind
 from opstools.inventory_forecast.domain.models import WorkbookMeta
 from opstools.inventory_forecast.engine.orchestrator import run_analytics_engine
@@ -70,12 +71,15 @@ def execute_pipeline(state: PipelineState) -> None:
 
         # Phase 2: Analytics Engine
         logger.info("Phase 2: Analytics Engine")
+        settings = Settings(
+            forecast_horizon=state.config.forecast_horizon,
+        )
         summary = run_analytics_engine(
             pov_df=pov_df,
             grn_df=grn_df,
             pv_df=pv_df,
             closing_stock_df=closing_stock_df,
-            forecast_horizon=state.config.forecast_horizon,
+            cfg=settings,
         )
 
         # Phase 3: Legacy DataFrame Collection
@@ -88,15 +92,19 @@ def execute_pipeline(state: PipelineState) -> None:
         )
 
         # Determine dataset statistics
-        if "supplier_id" in pov_df.columns:
-            total_suppliers = pov_df.select("supplier_id").n_unique()
-        else:
-            total_suppliers = 0
-        if "item_id" in closing_stock_df.columns:
-            total_items = closing_stock_df.select("item_id").n_unique()
-        else:
-            total_items = 0
-        total_records = len(pov_df) + len(grn_df) + len(pv_df) + len(closing_stock_df)
+        total_suppliers = (
+            pov_df.get_column("supplier_id").n_unique()
+            if "supplier_id" in pov_df.columns
+            else 0
+        )
+        total_items = (
+            closing_stock_df.get_column("item_id").n_unique()
+            if "item_id" in closing_stock_df.columns
+            else 0
+        )
+        total_records = (
+            pov_df.height + grn_df.height + pv_df.height + closing_stock_df.height
+        )
 
         state.complete_engine(total_suppliers, total_items, total_records)
 
@@ -240,8 +248,22 @@ def _safe_call[**P, R](
 
     try:
         result = func(*args, **kwargs)
+
+        if result is None:
+            return pl.DataFrame()
+
         if isinstance(result, pl.DataFrame):
             return result
+
+        if isinstance(result, pl.LazyFrame):
+            return result.collect()
+
+        logger.debug(
+            "Legacy function %s returned unsupported type %s",
+            getattr(func, "__name__", "<unknown>"),
+            type(result).__name__,
+        )
+
         return pl.DataFrame()
     except Exception as exc:
         logger.debug("Legacy engine module skipped or failed: %s", exc)

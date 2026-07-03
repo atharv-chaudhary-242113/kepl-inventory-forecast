@@ -45,7 +45,7 @@ def build_abc_classification(pv: pl.LazyFrame, cfg: Settings) -> pl.LazyFrame:
             supplier,
             item,
             annual_value(Decimal),
-            quantity_sold(Float64),
+            quantityt_bought(Float64),
             revenue_percentage(Float64),
             cumulative_revenue_percentage(Float64),
             quantity_percentage(Float64),
@@ -59,7 +59,7 @@ def build_abc_classification(pv: pl.LazyFrame, cfg: Settings) -> pl.LazyFrame:
     """
     annual = pv.group_by(["supplier", "item"]).agg(
         pl.col("amount").sum().alias("annual_value"),
-        pl.col("qty").sum().alias("quantity_bought"),
+        pl.col("qty").sum().alias("quantityt_bought"),
     )
 
     # Sort descending so the cumulative curve climbs from the highest-value item;
@@ -71,13 +71,13 @@ def build_abc_classification(pv: pl.LazyFrame, cfg: Settings) -> pl.LazyFrame:
             (pl.col("annual_value") / pl.col("annual_value").sum())
             .cast(pl.Float64)
             .alias("revenue_percentage"),
-            (pl.col("quantity_sold") / pl.col("quantity_sold").sum())
+            (pl.col("quantityt_bought") / pl.col("quantityt_bought").sum())
             .cast(pl.Float64)
             .alias("quantity_percentage"),
             (pl.col("annual_value").cum_sum() / pl.col("annual_value").sum()).alias(
                 "_cum_revenue"
             ),
-            (pl.col("quantity_sold").cum_sum() / pl.col("quantity_sold").sum()).alias(
+            (pl.col("quantityt_bought").cum_sum() / pl.col("quantityt_bought").sum()).alias(
                 "_cum_quantity"
             ),
         )
@@ -100,7 +100,7 @@ def build_abc_classification(pv: pl.LazyFrame, cfg: Settings) -> pl.LazyFrame:
                 "supplier",
                 "item",
                 "annual_value",
-                "quantity_sold",
+                "quantityt_bought",
                 "revenue_percentage",
                 "cumulative_revenue_percentage",
                 "quantity_percentage",
