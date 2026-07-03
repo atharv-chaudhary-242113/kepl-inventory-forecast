@@ -46,6 +46,7 @@ def compute_lead_time(pov: pl.LazyFrame, grn: pl.LazyFrame) -> pl.LazyFrame:
     # intervals overlap. The overlap length IS the FIFO-allocated quantity.
     allocations = (
         orders.join(deliveries, on=["supplier", "item"], how="inner")
+        .filter(pl.col("grn_date") >= pl.col("pov_date"))
         .with_columns(
             (
                 pl.min_horizontal("cum_after_o", "cum_after_d")
@@ -58,7 +59,23 @@ def compute_lead_time(pov: pl.LazyFrame, grn: pl.LazyFrame) -> pl.LazyFrame:
             .dt.total_days()
             .alias("lead_time_days")
         )
-        .select(["order_id", "grn_date", "delivered_qty", "lead_time_days"])
+        .select(
+            [
+                "order_id",
+                "grn_date",
+                "delivered_qty",
+                "lead_time_days",
+            ]
+        )
+    )
+
+    allocations = allocations.select(
+        [
+            "order_id",
+            "grn_date",
+            "delivered_qty",
+            "lead_time_days",
+        ]
     )
 
     # Left-join allocations back onto every order so orders that received nothing

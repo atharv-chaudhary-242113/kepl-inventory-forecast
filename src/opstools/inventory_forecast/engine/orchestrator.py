@@ -94,7 +94,7 @@ def run_analytics_engine(
 
     logger.info("Generating financials and pending deliveries.")
     financial_summary = financials.build_financial_summary(pv, cfg)
-    pending_deliveries = pending.build_pending_deliveries(pov)
+    pending_deliveries = pending.build_pending_deliveries(lead_times)
 
     logger.info("Classifying inventory.")
     demand_chars = classification.classify_sbc(demand_history)

@@ -56,7 +56,7 @@ def build_reorder_recommendations(
 
     default_months = cfg.default_lead_time_days / _DAYS_PER_MONTH
 
-    return (
+    result = (
         demand_stats.join(lt_stats, on=["supplier", "item"], how="left")
         .with_columns(
             # No observed lead time -> configured fallback (README §10).
@@ -73,6 +73,8 @@ def build_reorder_recommendations(
                 * pl.col("lead_time_months").sqrt()
             ).alias("reorder_point")
         )
+        .with_columns((pl.col("lead_time_months") < 0).alias("_negative_lt"))
+        .filter(pl.col("_negative_lt"))
         .select(
             [
                 "supplier",
@@ -85,3 +87,5 @@ def build_reorder_recommendations(
         )
         .sort(["supplier", "item"])
     )
+
+    return result

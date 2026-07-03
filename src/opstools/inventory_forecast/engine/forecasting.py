@@ -157,6 +157,25 @@ _OUTPUT_SCHEMA: dict[str, pl.datatypes.DataTypeClass | pl.Decimal] = {
 }
 
 
+# Minimum observations a model needs before we even attempt to fit it. This is
+# NOT the same as _MIN_CV_LEN (that only gates whether a series gets cross-validated)
+# and NOT the same as SBC class routing (that only says which model
+# family is preferred). A series can be long enough to cross-validate among
+# short-history models while still being far too short for AutoETS specifically
+# -- that gap is exactly what was raising "tiny datasets": sf.forecast() fits
+# every model in its list against every row of the input frame, regardless of
+# which model _select_models() actually chose for that series.
+_MODEL_MIN_OBS: dict[str, int] = {
+    "Naive": 1,
+    "CrostonSBA": 1,
+    "TSB": 1,
+    "SESOpt": 2,
+    "SeasonalNaive": _SEASON_LENGTH,      # needs one full season to look back
+    "AutoTheta": _MIN_CV_LEN,             # reuse the existing CV floor (8)
+    "AutoETS": 2 * _SEASON_LENGTH,        # ~2 full seasonal cycles, conservative
+}
+
+
 def forecast_demand(
     demand: pl.LazyFrame,
     sbc: pl.LazyFrame,
@@ -513,49 +532,88 @@ def _forecast_fitted(
     chosen: pl.DataFrame,
     horizon: int,
 ) -> pl.DataFrame:
-    """Fit all models on every fittable key, then keep each key's chosen column.
+    """Fit each model only against the series long enough to support it.
 
-    A single full-data fit produces the horizon for every model; we then pick, per
-    key, the column named by the model selection. Negative forecasts are clipped
-    to zero (demand cannot be negative).
+    Previously this built one StatsForecast with all seven models and called
+    sf.forecast() once against the whole fittable set. StatsForecast fits
+    every model in its list against every series present in the input frame
+    in that single call -- it has no idea which model _select_models() chose.
+    That's why a 3-observation series was being handed to AutoETS just to
+    have the result thrown away seconds later by the join against `chosen`:
+    AutoETS never got that far, because it raised NotImplementedError("tiny
+    datasets") first.
+
+    Now each model gets its own StatsForecast call, restricted to only the
+    series meeting that model's _MODEL_MIN_OBS floor. A model that a series
+    can't support never sees that series -- the crash isn't caught, it's
+    structurally impossible.
     """
     if fittable.height == 0:
         return _empty_forecast()
 
-    sf = StatsForecast(models=_build_models(), freq=_MONTHLY, n_jobs=1)
-    counts = fittable.group_by("unique_id").len().sort("len")
+    registry = {
+        "AutoETS": AutoETS(
+            season_length=_SEASON_LENGTH,
+            alias="AutoETS",
+        ),
+        "AutoTheta": AutoTheta(
+            season_length=_SEASON_LENGTH,
+            alias="AutoTheta",
+        ),
+        "CrostonSBA": CrostonSBA(
+            alias="CrostonSBA",
+        ),
+        "TSB": TSB(
+            alpha_d=0.1,
+            alpha_p=0.1,
+            alias="TSB",
+        ),
+        "Naive": Naive(
+            alias="Naive",
+        ),
+        "SeasonalNaive": SeasonalNaive(
+            season_length=_SEASON_LENGTH,
+            alias="SeasonalNaive",
+        ),
+        "SESOpt": SimpleExponentialSmoothingOptimized(
+            alias="SESOpt",
+        ),
+    }
 
-    logger.info(
-        "Forecast stage observation counts:\n%s",
-        counts,
-    )
-    try:
-        wide = _as_polars(
-            sf.forecast(
-                df=fittable.select(
-                    [
-                        "unique_id",
-                        "ds",
-                        "y",
-                    ]
-                ),
-                h=horizon,
+    parts: list[pl.DataFrame] = []
+
+    for alias, min_obs in _MODEL_MIN_OBS.items():
+        # `n` is already on `fittable` (joined in forecast_demand before this
+        # function runs) -- keep only series this specific model can support.
+        eligible = fittable.filter(pl.col("n") >= min_obs)
+        if eligible.height == 0:
+            continue
+
+        sf = StatsForecast(models=[registry[alias]], freq=_MONTHLY, n_jobs=1)
+        try:
+            wide = _as_polars(
+                sf.forecast(df=eligible.select(["unique_id", "ds", "y"]), h=horizon)
+            )
+        except NotImplementedError:
+            # Should be unreachable now that eligibility is enforced above.
+            # Kept so a model with an undocumented internal minimum still
+            # fails loudly and names itself, instead of surfacing as an
+            # opaque top-level pipeline crash the way it did before.
+            logger.error(
+                "%s rejected a series despite meeting _MODEL_MIN_OBS=%d", alias, min_obs
+            )
+            raise
+
+        parts.append(
+            wide.rename({alias: "forecast_quantity"}).with_columns(
+                pl.lit(alias).alias("model_alias")
             )
         )
-    except NotImplementedError:
-        logger.error(
-            "Smallest series entering forecast:\n%s",
-            counts.head(50),
-        )
-        raise
+
+    long = pl.concat(parts, how="vertical")
 
     return (
-        wide.unpivot(
-            index=["unique_id", "ds"],
-            on=list(_MODEL_ALIASES),
-            variable_name="model_alias",
-            value_name="forecast_quantity",
-        )
+        long
         # Inner-join on (key, alias) keeps only the selected model's rows per key.
         .join(chosen, on=["unique_id", "model_alias"], how="inner")
         .with_columns(
@@ -623,10 +681,10 @@ def _forecast_trivial(trivial: pl.DataFrame, horizon: int) -> pl.DataFrame:
 def _build_models() -> list[object]:
     """Instantiate the full candidate + baseline model set (fixed/auto params).
 
-    Every model is either parameter-free, optimised on the data, or carries fixed
+    Every model is either parameter-free, optimized on the data, or carries fixed
     smoothing constants — no source of run-to-run nondeterminism (Rule 9). TSB's
     decay constants (0.1) are conventional starting values; a future increment can
-    optimise them per series.
+    optimize them per series.
     """
     return [
         AutoETS(season_length=_SEASON_LENGTH, alias="AutoETS"),
