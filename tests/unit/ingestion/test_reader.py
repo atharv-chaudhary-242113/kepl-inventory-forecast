@@ -59,7 +59,7 @@ def test_reads_ledger_xlsx_with_all_erp_quirks(make_excel) -> None:
             ("Grand Total", None, None, None, None, None, None, 1313.0),  # footer
         ],
     )
-    df, exc_df = read_source(path, SourceKind.POV).collect()
+    df, _exc_df = read_source(path, SourceKind.POV).collect()
 
     assert df.columns == [
         "date",

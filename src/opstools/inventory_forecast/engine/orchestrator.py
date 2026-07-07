@@ -296,7 +296,7 @@ def _map_abc(df: pl.DataFrame) -> list[AbcClassification]:
                 supplier_id=str(row["supplier"]),
                 item_id=str(row["item"]),
                 annual_value=row["annual_value"],
-                quantityt_bought=int(row["quantityt_bought"]),
+                quantity_bought=int(row["quantity_bought"]),
                 revenue_percentage=float(row["revenue_percentage"]),
                 cumulative_revenue_percentage=float(
                     row["cumulative_revenue_percentage"]

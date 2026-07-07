@@ -55,3 +55,33 @@ def normalize_supplier_expr(column_name: str = "supplier") -> pl.Expr:
         .str.strip_chars()
         .alias(column_name)
     )
+
+
+def normalize_join_keys(lf: pl.LazyFrame, key_columns: list[str]) -> pl.LazyFrame:
+    """Apply strict, deterministic string normalization to designated columns.
+
+    This function standardizes text for reliable relational joins across disparate
+    ERP reports. It handles casing, whitespace compression, and stray terminal
+    punctuation without mutating internal string specifications (e.g., 4A vs 40A).
+
+    Args:
+        lf: The input LazyFrame containing raw ingestion data.
+        key_columns: A list of string column names to be normalized.
+
+    Returns:
+        A LazyFrame with the specified columns deterministically cleaned.
+    """
+    import polars as pl
+
+    expressions = []
+    for col in key_columns:
+        clean_expr = (
+            pl.col(col)
+            .str.to_uppercase()
+            .str.replace_all(r"\s+", " ")
+            .str.strip_chars()
+            .str.replace(r"[^\w\s\)\"']+$", "")
+        )
+        expressions.append(clean_expr)
+
+    return lf.with_columns(expressions)

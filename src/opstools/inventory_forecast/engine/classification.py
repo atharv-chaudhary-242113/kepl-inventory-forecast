@@ -45,7 +45,7 @@ def build_abc_classification(pv: pl.LazyFrame, cfg: Settings) -> pl.LazyFrame:
             supplier,
             item,
             annual_value(Decimal),
-            quantityt_bought(Float64),
+            quantity_bought(Float64),
             revenue_percentage(Float64),
             cumulative_revenue_percentage(Float64),
             quantity_percentage(Float64),
@@ -59,7 +59,7 @@ def build_abc_classification(pv: pl.LazyFrame, cfg: Settings) -> pl.LazyFrame:
     """
     annual = pv.group_by(["supplier", "item"]).agg(
         pl.col("amount").sum().alias("annual_value"),
-        pl.col("qty").sum().alias("quantityt_bought"),
+        pl.col("qty").sum().alias("quantity_bought"),
     )
 
     # Sort descending so the cumulative curve climbs from the highest-value item;
@@ -71,14 +71,14 @@ def build_abc_classification(pv: pl.LazyFrame, cfg: Settings) -> pl.LazyFrame:
             (pl.col("annual_value") / pl.col("annual_value").sum())
             .cast(pl.Float64)
             .alias("revenue_percentage"),
-            (pl.col("quantityt_bought") / pl.col("quantityt_bought").sum())
+            (pl.col("quantity_bought") / pl.col("quantity_bought").sum())
             .cast(pl.Float64)
             .alias("quantity_percentage"),
             (pl.col("annual_value").cum_sum() / pl.col("annual_value").sum()).alias(
                 "_cum_revenue"
             ),
             (
-                pl.col("quantityt_bought").cum_sum() / pl.col("quantityt_bought").sum()
+                pl.col("quantity_bought").cum_sum() / pl.col("quantity_bought").sum()
             ).alias("_cum_quantity"),
         )
         .with_columns(
@@ -100,7 +100,7 @@ def build_abc_classification(pv: pl.LazyFrame, cfg: Settings) -> pl.LazyFrame:
                 "supplier",
                 "item",
                 "annual_value",
-                "quantityt_bought",
+                "quantity_bought",
                 "revenue_percentage",
                 "cumulative_revenue_percentage",
                 "quantity_percentage",

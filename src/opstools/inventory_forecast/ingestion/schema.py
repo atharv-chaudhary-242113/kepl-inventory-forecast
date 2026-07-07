@@ -29,6 +29,7 @@ from opstools.inventory_forecast.ingestion import (
     normalize_supplier_expr,
     normalize_token,
 )
+from opstools.inventory_forecast.ingestion.normalize import normalize_join_keys
 
 # Money is held as Polars `Decimal` from the ingestion boundary onward so that
 # every downstream sum/aggregation accumulates in fixed-point, never float
@@ -107,8 +108,6 @@ def map_to_canonical(
     Raises:
         MissingColumnError: a required column could not be located in `table`.
     """
-    # Map each *present* column by its normalized form so we can find "qty." for
-    # an expected "Qty." regardless of case/spacing.
     present: dict[str, str] = {normalize_token(c): c for c in table.columns}
 
     rename: dict[str, str] = {}
@@ -128,13 +127,7 @@ def map_to_canonical(
 
 
 def _parse_date_expr(column_name: str) -> pl.Expr:
-    """Expression parsing a text date column into a Polars `Date`.
-
-    Tries the Excel datetime form first, then each ISO/Indian format, keeping the
-    first that parses (`strict=False` yields null on a miss, `coalesce` picks the
-    winner). A value that matches no format becomes null and is caught by
-    validation as an unparseable date.
-    """
+    """Expression parsing a text date column into a Polars `Date`."""
     col = pl.col(column_name)
     candidates: list[pl.Expr] = [
         col.str.to_datetime(_DATETIME_FORMAT, strict=False).dt.date(),
@@ -163,18 +156,24 @@ def finalize_records(
     # 1. Trim every text cell and turn blanks into true nulls
     lf = canonical.lazy().with_columns(blank_to_null_expr(c) for c in columns)
 
-    # 2. Remove separator rows
+    # 2. Apply strict string normalization to prevent downstream join failures
+    keys_to_normalize = ["item"]
+    if ledger:
+        keys_to_normalize.append("supplier")
+    lf = normalize_join_keys(lf, keys_to_normalize)
+
+    # 3. Remove separator rows
     if ledger:
         lf = lf.filter(~(pl.col("supplier").is_null() & pl.col("item").is_null()))
     else:
         lf = lf.filter(pl.col("item").is_not_null())
 
-    # 3. Forward-fill the hierarchical supplier
+    # 4. Forward-fill the hierarchical supplier
     if ledger:
         lf = lf.with_columns(forward_fill_supplier_expr())
         lf = lf.with_columns(normalize_supplier_expr())
 
-    # 4. Cast into typed temporaries for validation comparison
+    # 5. Cast into typed temporaries for validation comparison
     typed_exprs: list[pl.Expr] = [
         pl.col("qty").cast(pl.Float64, strict=False).alias("__qty"),
         pl.col("price")
@@ -191,7 +190,7 @@ def finalize_records(
     # Segregate clean data from bad data
     valid_df, exceptions_df = _validate(df, ledger, source_label)
 
-    # 5. Emit the final typed frame from the clean data
+    # 6. Emit the final typed frame from the clean data
     final_exprs: list[pl.Expr] = []
     for name in columns:
         if name == "qty":
@@ -211,7 +210,7 @@ def finalize_records(
 def _validate(
     df: pl.DataFrame, ledger: bool, source_label: str
 ) -> tuple[pl.DataFrame, pl.DataFrame]:
-    """Filter out invalid records into an exceptions DataFrame instead of crashing."""
+    """Filter out invalid records into an exceptions DataFrame safely."""
     exceptions = []
 
     # Assign temporary row numbers to track failing rows precisely
@@ -231,7 +230,7 @@ def _validate(
                 exceptions.append(
                     {
                         "File Name": source_label,
-                        "Row Number": idx + 2,  # +2 accounts for 0-index and header row
+                        "Row Number": idx + 2,
                         "Reason": reason_template.format(col=display_name),
                         "Offending Value": str(row.get(col_name, "")),
                         "Full Record": str(clean_row),
@@ -250,7 +249,7 @@ def _validate(
             "Particulars",
         )
 
-    # Rule: Numeric parsing and negative amounts
+    # Rule: Numeric parsing
     for canonical_name, typed_name in (
         ("Qty.", "__qty"),
         ("Price", "__price"),
@@ -259,23 +258,12 @@ def _validate(
         source_col = {"__qty": "qty", "__price": "price", "__amount": "amount"}[
             typed_name
         ]
-
-        # Unparseable strings
         add_exceptions(
             pl.col(typed_name).is_null() & pl.col(source_col).is_not_null(),
             "Non-numeric value in '{col}'",
             source_col,
             canonical_name,
         )
-
-        # Negative financials (Qty omitted intentionally per business rule)
-        if typed_name in ("__price", "__amount"):
-            add_exceptions(
-                pl.col(typed_name) < 0,
-                "Negative value in '{col}'",
-                typed_name,
-                canonical_name,
-            )
 
     # Rule: Unparseable dates
     if ledger:
@@ -286,10 +274,13 @@ def _validate(
             "Date",
         )
 
-    # Extract valid rows and construct the exceptions frame
-    valid_df = df.filter(~pl.col("__row_number").is_in(list(bad_indices))).drop(
-        "__row_number"
-    )
+    # SECURE FILTER: Bypass is_in([]) evaluation completely if the list is empty
+    if bad_indices:
+        valid_df = df.filter(~pl.col("__row_number").is_in(list(bad_indices)))
+    else:
+        valid_df = df
+
+    valid_df = valid_df.drop("__row_number")
 
     exc_schema = {
         "File Name": pl.Utf8,

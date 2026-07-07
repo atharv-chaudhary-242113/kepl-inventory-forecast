@@ -74,6 +74,7 @@ _MIN_CV_LEN: int = 12  # below this, fit but do not cross-validate (no selection
 _CV_WINDOWS: int = 2
 _MAX_CV_H: int = 3
 
+
 def _min_cv_history(horizon: int) -> int:
     """Minimum observations required for rolling-origin cross-validation.
 
@@ -170,9 +171,9 @@ _MODEL_MIN_OBS: dict[str, int] = {
     "CrostonSBA": 1,
     "TSB": 1,
     "SESOpt": 2,
-    "SeasonalNaive": _SEASON_LENGTH,      # needs one full season to look back
-    "AutoTheta": _MIN_CV_LEN,             # reuse the existing CV floor (8)
-    "AutoETS": 2 * _SEASON_LENGTH,        # ~2 full seasonal cycles, conservative
+    "SeasonalNaive": _SEASON_LENGTH,  # needs one full season to look back
+    "AutoTheta": _MIN_CV_LEN,  # reuse the existing CV floor (8)
+    "AutoETS": 2 * _SEASON_LENGTH,  # ~2 full seasonal cycles, conservative
 }
 
 

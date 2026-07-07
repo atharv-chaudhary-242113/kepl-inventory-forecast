@@ -59,8 +59,15 @@ def build_inventory_health(
         )
         .with_columns(
             # Cover is undefined without demand -> null (flagged via status).
+            # We explicitly floor the result at 0.0 to prevent negative coverage metrics
+            # from leaking into the domain models
+            # when evaluating ERP credit/return quantities.
             pl.when(pl.col("avg_monthly_demand") > 0)
-            .then(pl.col("quantity") / pl.col("avg_monthly_demand"))
+            .then(
+                pl.max_horizontal(
+                    pl.col("quantity") / pl.col("avg_monthly_demand"), pl.lit(0.0)
+                )
+            )
             .otherwise(None)
             .alias("months_of_cover"),
             # Quantity held beyond the target cover, never negative.
